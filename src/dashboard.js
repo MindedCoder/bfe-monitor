@@ -49,14 +49,15 @@ function renderCodexCard(codex) {
   return rows.join('');
 }
 
-function renderInstancePanel(name, label, data) {
+function renderInstancePanel(name, label, data, baseUrl) {
   const errorCls = data?.error ? ' panel-error' : '';
   const pollTime = timeAgo(data?.lastPoll);
+  const monitorUrl = `${baseUrl}/${name}/`;
 
   return `
     <div class="panel${errorCls}">
       <div class="panel-header">
-        <h3>${esc(label)}${label !== name ? ` <span style="font-size:11px;color:#8b949e;font-weight:400">${esc(name)}</span>` : ''}</h3>
+        <a href="${monitorUrl}" target="_blank" class="panel-link">${esc(label)}${label !== name ? ` <span style="font-size:11px;color:#8b949e;font-weight:400">${esc(name)}</span>` : ''}</a>
         <span class="poll-time">${pollTime}</span>
       </div>
       ${data?.error
@@ -70,12 +71,12 @@ function renderInstancePanel(name, label, data) {
     </div>`;
 }
 
-export function renderInner(instances, state) {
-  return [...instances.entries()].map(([name, label]) => renderInstancePanel(name, label, state.get(name))).join('');
+export function renderInner(instances, state, baseUrl) {
+  return [...instances.entries()].map(([name, label]) => renderInstancePanel(name, label, state.get(name), baseUrl)).join('');
 }
 
-export function renderPage(basePath, instances, state) {
-  const inner = renderInner(instances, state);
+export function renderPage(basePath, instances, state, baseUrl) {
+  const inner = renderInner(instances, state, baseUrl);
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -97,6 +98,8 @@ input[type=text]{background:#0d1117;border:1px solid #30363d;color:#c9d1d9;paddi
 .panel-error{border-color:#f85149}
 .panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .panel-header h3{font-size:15px;color:#c9d1d9}
+.panel-link{font-size:15px;color:#58a6ff;text-decoration:none;font-weight:600}
+.panel-link:hover{text-decoration:underline}
 .poll-time{font-size:11px;color:#484f58}
 .metrics{display:flex;flex-direction:column;gap:6px}
 .metric{font-size:13px;padding:4px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap}

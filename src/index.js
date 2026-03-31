@@ -49,12 +49,12 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'GET' && path === '/') {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    return res.end(renderPage(basePath, instances, state));
+    return res.end(renderPage(basePath, instances, state, config.baseUrl));
   }
 
   if (req.method === 'GET' && path === '/api/html') {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    return res.end(renderInner(instances, state));
+    return res.end(renderInner(instances, state, config.baseUrl));
   }
 
   if (req.method === 'GET' && path === '/api/status') {

@@ -1,7 +1,10 @@
+import { createNotifier } from './notifier.js';
+
 export function createPoller(config, instances, state) {
   const baseUrl = config.baseUrl || 'https://claw.bfelab.com';
   const interval = config.pollIntervalMs || 5000;
   const timeout = config.timeoutMs || 10000;
+  const notifier = createNotifier(config);
   let timer = null;
 
   async function fetchJson(url) {
@@ -47,10 +50,10 @@ export function createPoller(config, instances, state) {
       })
     );
     await Promise.all(tasks);
+    notifier.check(instances, state);
   }
 
   function start() {
-    // init state
     for (const name of instances.keys()) {
       if (!state.has(name)) {
         state.set(name, { ping: null, health: null, codex: null, lastPoll: null, error: null });

@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bfe-monitor
+  namespace: bfe
+  labels:
+    app: bfe-monitor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bfe-monitor
+  template:
+    metadata:
+      labels:
+        app: bfe-monitor
+    spec:
+      containers:
+        - name: bfe-monitor
+          image: bfelab-registry.cn-hangzhou.cr.aliyuncs.com/bfelab/bfe-monitor:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: CONFIG_PATH
+              value: /etc/bfe-monitor/config.json
+          volumeMounts:
+            - name: config
+              mountPath: /etc/bfe-monitor/config.json
+              subPath: config.json
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /bfe-monitor/healthz
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /bfe-monitor/healthz
+              port: 3000
+            initialDelaySeconds: 3
+            periodSeconds: 10
+      imagePullSecrets:
+        - name: bfe-qiye
+      volumes:
+        - name: config
+          configMap:
+            name: bfe-monitor-config

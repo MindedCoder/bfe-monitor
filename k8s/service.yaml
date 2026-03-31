@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: bfe-monitor
+  namespace: bfe
+spec:
+  selector:
+    app: bfe-monitor
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000

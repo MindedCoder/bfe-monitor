@@ -1,0 +1,25 @@
+# bfe-monitor ingress: /bfe-monitor/ → bfe-monitor service, no auth
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bfe-monitor-ingress
+  namespace: bfe
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - claw.bfelab.com
+      secretName: bfefree
+  rules:
+    - host: claw.bfelab.com
+      http:
+        paths:
+          - path: /bfe-monitor
+            pathType: Prefix
+            backend:
+              service:
+                name: bfe-monitor
+                port:
+                  number: 3000

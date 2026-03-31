@@ -1,0 +1,11 @@
+{
+  "port": 3000,
+  "basePath": "/bfe-monitor",
+  "baseUrl": "https://claw.bfelab.com",
+  "pollIntervalMs": 5000,
+  "timeoutMs": 10000,
+  "instances": [
+    "bfetest",
+    "monitor"
+  ]
+}

@@ -5,7 +5,7 @@
   "pollIntervalMs": 5000,
   "timeoutMs": 10000,
   "feishu": {
-    "webhookUrl": ""
+    "webhookUrl": "https://open.feishu.cn/open-apis/bot/v2/hook/2823a3ce-f536-43c3-9589-a7bb1e5aac0e"
   },
   "instances": [
     { "name": "bfetest", "label": "bfe机器" },

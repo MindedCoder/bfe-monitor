@@ -21,7 +21,8 @@ async function sendWebhook(webhookUrl, card) {
   }
 }
 
-function buildCard(title, color, lines) {
+function buildCard(title, color, lines, baseUrl, basePath) {
+  const dashboardUrl = `${baseUrl}${basePath}/`;
   return {
     header: {
       title: { tag: 'plain_text', content: title },
@@ -33,6 +34,15 @@ function buildCard(title, color, lines) {
         text: { tag: 'lark_md', content: lines.join('\n') },
       },
       {
+        tag: 'action',
+        actions: [{
+          tag: 'button',
+          text: { tag: 'plain_text', content: '查看面板' },
+          url: dashboardUrl,
+          type: 'primary',
+        }],
+      },
+      {
         tag: 'note',
         elements: [{ tag: 'plain_text', content: `BFE Monitor · ${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}` }],
       },
@@ -42,6 +52,8 @@ function buildCard(title, color, lines) {
 
 export function createNotifier(config) {
   const webhookUrl = config.feishu?.webhookUrl;
+  const baseUrl = config.baseUrl || 'https://claw.bfelab.com';
+  const basePath = config.basePath || '/bfe-monitor';
   if (!webhookUrl) {
     return { check() {} };
   }
@@ -67,7 +79,7 @@ export function createNotifier(config) {
           const card = buildCard(`${label} 已恢复`, 'green', [
             `**${label}** (${name})`,
             'OpenClaw 服务已恢复正常',
-          ]);
+          ], baseUrl, basePath);
           sendWebhook(webhookUrl, card);
         }
       }
@@ -107,7 +119,7 @@ export function createNotifier(config) {
         if (shouldAlert(key)) {
           const color = alerts.some(a => a.type === 'error') ? 'red' : 'orange';
           const lines = [`**${label}** (${name})`, ...alerts.map(a => `${a.type === 'error' ? '🔴' : '🟡'} ${a.msg}`)];
-          const card = buildCard(`${label} 告警`, color, lines);
+          const card = buildCard(`${label} 告警`, color, lines, baseUrl, basePath);
           sendWebhook(webhookUrl, card);
         }
       }

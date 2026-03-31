@@ -9,7 +9,8 @@ data:
       "port": 3000,
       "basePath": "/bfe-monitor",
       "baseUrl": "https://claw.bfelab.com",
-      "pollIntervalMs": 5000,
+      "pollIntervalMs": 300000,
+      "codexPollIntervalMs": 300000,
       "timeoutMs": 10000,
       "feishu": {
         "webhookUrl": ""

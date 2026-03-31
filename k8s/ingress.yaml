@@ -6,6 +6,7 @@ metadata:
   namespace: bfe
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/use-regex: "true"
 spec:
   ingressClassName: nginx
   tls:
@@ -16,8 +17,8 @@ spec:
     - host: claw.bfelab.com
       http:
         paths:
-          - path: /bfe-monitor
-            pathType: Prefix
+          - path: /bfe-monitor(/|$)(.*)
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: bfe-monitor

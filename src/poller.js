@@ -37,7 +37,7 @@ export function createPoller(config, instances, state) {
   }
 
   async function pollAll() {
-    const tasks = [...instances].map(name =>
+    const tasks = [...instances.keys()].map(name =>
       pollInstance(name).catch(err => {
         state.set(name, {
           ping: null, health: null, codex: null,
@@ -51,7 +51,7 @@ export function createPoller(config, instances, state) {
 
   function start() {
     // init state
-    for (const name of instances) {
+    for (const name of instances.keys()) {
       if (!state.has(name)) {
         state.set(name, { ping: null, health: null, codex: null, lastPoll: null, error: null });
       }

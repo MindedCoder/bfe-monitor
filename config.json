@@ -5,7 +5,7 @@
   "pollIntervalMs": 5000,
   "timeoutMs": 10000,
   "instances": [
-    "bfetest",
-    "monitor"
+    { "name": "bfetest", "label": "bfe机器" },
+    { "name": "monitor", "label": "网管机" }
   ]
 }

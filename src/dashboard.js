@@ -49,14 +49,14 @@ function renderCodexCard(codex) {
   return rows.join('');
 }
 
-function renderInstancePanel(name, data) {
+function renderInstancePanel(name, label, data) {
   const errorCls = data?.error ? ' panel-error' : '';
   const pollTime = timeAgo(data?.lastPoll);
 
   return `
     <div class="panel${errorCls}">
       <div class="panel-header">
-        <h3>${esc(name)}</h3>
+        <h3>${esc(label)}${label !== name ? ` <span style="font-size:11px;color:#8b949e;font-weight:400">${esc(name)}</span>` : ''}</h3>
         <span class="poll-time">${pollTime}</span>
       </div>
       ${data?.error
@@ -71,7 +71,7 @@ function renderInstancePanel(name, data) {
 }
 
 export function renderInner(instances, state) {
-  return [...instances].map(name => renderInstancePanel(name, state.get(name))).join('');
+  return [...instances.entries()].map(([name, label]) => renderInstancePanel(name, label, state.get(name))).join('');
 }
 
 export function renderPage(basePath, instances, state) {
@@ -117,7 +117,8 @@ input[type=text]{background:#0d1117;border:1px solid #30363d;color:#c9d1d9;paddi
   <h1>BFE Monitor</h1>
   <div class="topbar-right">
     <span class="instance-count">${instances.size} 台机器</span>
-    <input type="text" id="newInstance" placeholder="添加实例名">
+    <input type="text" id="newInstance" placeholder="实例名">
+    <input type="text" id="newLabel" placeholder="中文名">
     <button class="btn" onclick="addInstance()">添加</button>
   </div>
 </header>
@@ -125,11 +126,13 @@ input[type=text]{background:#0d1117;border:1px solid #30363d;color:#c9d1d9;paddi
 <script>
 const BASE='${basePath}';
 async function addInstance(){
-  const input=document.getElementById('newInstance');
-  const name=input.value.trim();
+  const nameInput=document.getElementById('newInstance');
+  const labelInput=document.getElementById('newLabel');
+  const name=nameInput.value.trim();
   if(!name)return;
-  await fetch(BASE+'/api/instances',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
-  input.value='';
+  const label=labelInput.value.trim()||name;
+  await fetch(BASE+'/api/instances',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,label})});
+  nameInput.value='';labelInput.value='';
 }
 setInterval(async()=>{
   try{

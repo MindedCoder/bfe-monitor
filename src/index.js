@@ -1,5 +1,5 @@
 import http from 'node:http';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { renderPage, renderInner } from './dashboard.js';
@@ -15,8 +15,15 @@ const config = JSON.parse(readFileSync(confPath, 'utf-8'));
 const port = config.port || 3000;
 const basePath = config.basePath || '/bfe-monitor';
 
-// instance list (mutable, can be added via API)
-const instances = new Set(config.instances || []);
+// instance map: name → label (mutable)
+const instances = new Map();
+for (const item of config.instances || []) {
+  if (typeof item === 'string') {
+    instances.set(item, item);
+  } else {
+    instances.set(item.name, item.label || item.name);
+  }
+}
 
 // polling state: { instanceName: { ping, health, codex, lastPoll, error } }
 const state = new Map();
@@ -29,12 +36,10 @@ poller.start();
 const server = http.createServer(async (req, res) => {
   let path = req.url.split('?')[0];
 
-  // strip basePath
   if (basePath && path.startsWith(basePath)) {
     path = path.slice(basePath.length) || '/';
   }
 
-  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
 
   if (req.method === 'OPTIONS') {
@@ -42,7 +47,6 @@ const server = http.createServer(async (req, res) => {
     return res.end();
   }
 
-  // routes
   if (req.method === 'GET' && path === '/') {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     return res.end(renderPage(basePath, instances, state));
@@ -57,12 +61,12 @@ const server = http.createServer(async (req, res) => {
     const data = {};
     for (const [name, s] of state) data[name] = s;
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify({ instances: [...instances], data }));
+    return res.end(JSON.stringify({ instances: [...instances.entries()].map(([n, l]) => ({ name: n, label: l })), data }));
   }
 
   if (req.method === 'GET' && path === '/api/instances') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify([...instances]));
+    return res.end(JSON.stringify([...instances.entries()].map(([n, l]) => ({ name: n, label: l }))));
   }
 
   if (req.method === 'POST' && path === '/api/instances') {
@@ -71,11 +75,11 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: 'name required' }));
     }
-    instances.add(body.name);
+    instances.set(body.name, body.label || body.name);
     state.set(body.name, { ping: null, health: null, codex: null, lastPoll: null, error: null });
-    console.log(`[bfe-monitor] instance added: ${body.name}`);
+    console.log(`[bfe-monitor] instance added: ${body.name} (${body.label || body.name})`);
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify({ ok: true, instances: [...instances] }));
+    return res.end(JSON.stringify({ ok: true }));
   }
 
   if (req.method === 'DELETE' && path.startsWith('/api/instances/')) {
@@ -84,7 +88,7 @@ const server = http.createServer(async (req, res) => {
     state.delete(name);
     console.log(`[bfe-monitor] instance removed: ${name}`);
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify({ ok: true, instances: [...instances] }));
+    return res.end(JSON.stringify({ ok: true }));
   }
 
   if (req.method === 'GET' && path === '/healthz') {
@@ -98,7 +102,7 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(port, () => {
   console.log(`[bfe-monitor] listening on :${port}, basePath=${basePath}`);
-  console.log(`[bfe-monitor] monitoring ${instances.size} instances: ${[...instances].join(', ')}`);
+  console.log(`[bfe-monitor] monitoring ${instances.size} instances: ${[...instances.entries()].map(([n, l]) => `${n}(${l})`).join(', ')}`);
 });
 
 function readBody(req) {

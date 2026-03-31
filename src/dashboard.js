@@ -13,9 +13,20 @@ function timeAgo(ts) {
 
 function renderPingCard(ping) {
   if (!ping || ping.error) return '<div class="metric error">Ping: 不可用</div>';
+
+  // /api/ping/trigger returns array: [{name, ok, ms, ...}, ...]
+  if (Array.isArray(ping)) {
+    if (ping.length === 0) return '<div class="metric unknown">Ping: 未检测</div>';
+    return ping.map(item => {
+      const cls = item.ok ? 'ok' : 'fail';
+      const val = item.ok ? `${item.ms}ms` : (item.error || `HTTP ${item.status}`);
+      return `<div class="metric ${cls}">${esc(item.name || '?')}: ${val}</div>`;
+    }).join('');
+  }
+
+  // /api/ping returns object: { Google: { last: {...}, historyCount }, ... }
   const targets = Object.entries(ping).filter(([k]) => k !== 'error');
   if (targets.length === 0) return '<div class="metric unknown">Ping: 未检测</div>';
-
   return targets.map(([name, data]) => {
     if (!data?.last) return `<div class="metric unknown">${esc(name)}: 未检测</div>`;
     const cls = data.last.ok ? 'ok' : 'fail';

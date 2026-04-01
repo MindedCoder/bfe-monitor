@@ -32,6 +32,13 @@ export function createPoller(config, instances, state) {
     ]);
 
     const prev = state.get(name) || {};
+    const ts = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
+    console.log(`[poller][${ts}] ${name} health: ${prev.health?.status ?? 'N/A'} → ${health?.status ?? health?.error ?? 'N/A'}`);
+    console.log(`[poller][${ts}] ${name} ping: ${JSON.stringify(prev.ping?.error ?? summarizePing(prev.ping))} → ${JSON.stringify(ping?.error ?? summarizePing(ping))}`);
+    if (prev.error || health?.error || ping?.error) {
+      console.log(`[poller][${ts}] ${name} error: ${prev.error ?? 'none'} → ${health?.error || ping?.error || 'none'}`);
+    }
+
     state.set(name, {
       ping,
       health,
@@ -41,11 +48,25 @@ export function createPoller(config, instances, state) {
     });
   }
 
+  function summarizePing(ping) {
+    if (!ping || ping.error) return 'N/A';
+    const result = {};
+    for (const [target, info] of Object.entries(ping)) {
+      if (info?.last) result[target] = info.last.ok ? 'ok' : `fail(${info.last.error || 'HTTP ' + info.last.status})`;
+    }
+    return Object.keys(result).length ? result : 'N/A';
+  }
+
   async function pollCodexInstance(name) {
     const apiBase = `${baseUrl}/${name}/api`;
     const codex = await fetchJson(`${apiBase}/codex-usage/refresh`);
 
     const prev = state.get(name) || {};
+    const ts = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
+    const prevPercent = prev.codex?.primary?.usedPercent;
+    const curPercent = codex?.primary?.usedPercent;
+    console.log(`[poller][${ts}] ${name} codex: ${prevPercent ?? 'N/A'}% → ${curPercent ?? codex?.error ?? 'N/A'}%`);
+
     state.set(name, { ...prev, codex, lastPoll: Date.now() });
   }
 

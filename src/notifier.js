@@ -1,5 +1,7 @@
 const ALERT_COOLDOWN = 60000; // same alert at least 60s apart
+const REPEAT_INTERVAL = 5 * 60 * 1000; // repeat ongoing alerts every 5 minutes
 const lastAlerts = new Map(); // key → timestamp
+const ongoingAlerts = new Map(); // name → { since, lastRepeat }
 
 function shouldAlert(key) {
   const last = lastAlerts.get(key) || 0;
@@ -113,7 +115,7 @@ export function createNotifier(config) {
       }
       prev.connError = !!data.error;
 
-      // send alerts
+      // send alerts for state changes
       if (alerts.length > 0) {
         const key = `${name}:${alerts.map(a => a.msg).join(',')}`;
         if (shouldAlert(key)) {
@@ -122,6 +124,30 @@ export function createNotifier(config) {
           const card = buildCard(`${label} 告警`, color, lines, baseUrl, basePath);
           sendWebhook(webhookUrl, card);
         }
+      }
+
+      // repeat alerts for ongoing issues every 5 minutes
+      const hasOngoingIssue = healthStatus === 'down' || !!data.error;
+      if (hasOngoingIssue) {
+        const ongoing = ongoingAlerts.get(name);
+        const now = Date.now();
+        if (!ongoing) {
+          ongoingAlerts.set(name, { since: now, lastRepeat: now });
+        } else if (now - ongoing.lastRepeat >= REPEAT_INTERVAL) {
+          ongoing.lastRepeat = now;
+          const durationMin = Math.round((now - ongoing.since) / 60000);
+          const lines = [`**${label}** (${name})`];
+          if (healthStatus === 'down') {
+            lines.push(`🔴 OpenClaw 持续宕机中 (已持续 ${durationMin} 分钟, 连续失败 ${data.health?.consecutiveFails || '?'} 次)`);
+          }
+          if (data.error) {
+            lines.push(`🔴 持续连接失败: ${data.error} (已持续 ${durationMin} 分钟)`);
+          }
+          const card = buildCard(`${label} 持续告警`, 'red', lines, baseUrl, basePath);
+          sendWebhook(webhookUrl, card);
+        }
+      } else {
+        ongoingAlerts.delete(name);
       }
 
       prev.health = healthStatus;

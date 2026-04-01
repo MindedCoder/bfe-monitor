@@ -105,9 +105,6 @@ export function createNotifier(config) {
           alerts.push({ type: 'error', msg: `Codex 已达配额上限 (${data.codex.plan || ''})` });
         }
         const primary = data.codex.primary?.usedPercent;
-        if (primary !== undefined && primary === 0 && prev.codexPrimary !== 0) {
-          alerts.push({ type: 'warn', msg: `Codex 5h 窗口使用 0%，可能接口异常` });
-        }
         if (primary !== undefined && primary > 80 && (prev.codexPrimary || 0) <= 80) {
           alerts.push({ type: 'warn', msg: `Codex 5h 窗口使用 ${Math.round(primary)}%` });
         }
@@ -136,11 +133,6 @@ export function createNotifier(config) {
       const ongoingIssues = [];
       if (healthStatus === 'down') ongoingIssues.push(`🔴 OpenClaw 持续宕机中 (连续失败 ${data.health?.consecutiveFails || '?'} 次)`);
       if (data.error) ongoingIssues.push(`🔴 持续连接失败: ${data.error}`);
-      // check for ongoing codex 0%
-      const codexPrimary = data.codex?.primary?.usedPercent;
-      if (codexPrimary !== undefined && codexPrimary === 0) {
-        ongoingIssues.push(`🟡 Codex 5h 窗口持续 0%，可能接口异常`);
-      }
       // check for ongoing ping failures
       if (data.ping && !data.ping.error) {
         const pingItems = Array.isArray(data.ping)

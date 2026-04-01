@@ -86,13 +86,16 @@ export function createNotifier(config) {
         }
       }
 
-      // check ping
+      // check ping (supports array format from /api/ping/trigger)
       if (data.ping && !data.ping.error) {
-        for (const [target, info] of Object.entries(data.ping)) {
-          if (info?.last && !info.last.ok && prev[`ping:${target}`] !== false) {
-            alerts.push({ type: 'warn', msg: `${target} Ping 失败: ${info.last.error || 'HTTP ' + info.last.status}` });
+        const pingItems = Array.isArray(data.ping)
+          ? data.ping.map(item => [item.name || '?', { ok: item.ok, error: item.error, status: item.status }])
+          : Object.entries(data.ping).filter(([k]) => k !== 'error').map(([k, v]) => [k, v?.last]);
+        for (const [target, info] of pingItems) {
+          if (info && !info.ok && prev[`ping:${target}`] !== false) {
+            alerts.push({ type: 'warn', msg: `${target} Ping 失败: ${info.error || 'HTTP ' + info.status}` });
           }
-          if (info?.last) prev[`ping:${target}`] = info.last.ok;
+          if (info) prev[`ping:${target}`] = info.ok;
         }
       }
 

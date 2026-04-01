@@ -51,8 +51,17 @@ export function createPoller(config, instances, state) {
   function summarizePing(ping) {
     if (!ping || ping.error) return 'N/A';
     const result = {};
-    for (const [target, info] of Object.entries(ping)) {
-      if (info?.last) result[target] = info.last.ok ? 'ok' : `fail(${info.last.error || 'HTTP ' + info.last.status})`;
+    // array format from /api/ping/trigger: [{name, ok, ms, error, status}, ...]
+    if (Array.isArray(ping)) {
+      for (const item of ping) {
+        const name = item.name || '?';
+        result[name] = item.ok ? `ok(${item.ms}ms)` : `fail(${item.error || 'HTTP ' + item.status})`;
+      }
+    } else {
+      // object format from /api/ping: { target: { last: {...} }, ... }
+      for (const [target, info] of Object.entries(ping)) {
+        if (info?.last) result[target] = info.last.ok ? 'ok' : `fail(${info.last.error || 'HTTP ' + info.last.status})`;
+      }
     }
     return Object.keys(result).length ? result : 'N/A';
   }

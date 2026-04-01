@@ -13,10 +13,11 @@ data:
       "codexPollIntervalMs": 300000,
       "timeoutMs": 10000,
       "feishu": {
-        "webhookUrl": ""
+        "webhookUrl": "https://open.feishu.cn/open-apis/bot/v2/hook/2823a3ce-f536-43c3-9589-a7bb1e5aac0e"
       },
       "instances": [
         { "name": "bfetest", "label": "bfe机器" },
-        { "name": "monitor", "label": "网管机" }
+        { "name": "monitor", "label": "网管机" },
+        { "name": "kai", "label": "凯哥" }
       ]
     }

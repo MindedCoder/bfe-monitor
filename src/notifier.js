@@ -105,6 +105,9 @@ export function createNotifier(config) {
           alerts.push({ type: 'error', msg: `Codex 已达配额上限 (${data.codex.plan || ''})` });
         }
         const primary = data.codex.primary?.usedPercent;
+        if (primary !== undefined && primary === 0 && prev.codexPrimary !== 0) {
+          alerts.push({ type: 'warn', msg: `Codex 5h 窗口使用 0%，可能接口异常` });
+        }
         if (primary !== undefined && primary > 80 && (prev.codexPrimary || 0) <= 80) {
           alerts.push({ type: 'warn', msg: `Codex 5h 窗口使用 ${Math.round(primary)}%` });
         }
@@ -129,9 +132,24 @@ export function createNotifier(config) {
         }
       }
 
+      // collect ongoing issues: health down, connection error, ping failures
+      const ongoingIssues = [];
+      if (healthStatus === 'down') ongoingIssues.push(`🔴 OpenClaw 持续宕机中 (连续失败 ${data.health?.consecutiveFails || '?'} 次)`);
+      if (data.error) ongoingIssues.push(`🔴 持续连接失败: ${data.error}`);
+      // check for ongoing ping failures
+      if (data.ping && !data.ping.error) {
+        const pingItems = Array.isArray(data.ping)
+          ? data.ping.map(item => [item.name || '?', { ok: item.ok, error: item.error, status: item.status }])
+          : Object.entries(data.ping).filter(([k]) => k !== 'error').map(([k, v]) => [k, v?.last]);
+        for (const [target, info] of pingItems) {
+          if (info && !info.ok) {
+            ongoingIssues.push(`🟡 ${target} Ping 持续失败: ${info.error || 'HTTP ' + info.status}`);
+          }
+        }
+      }
+
       // repeat alerts for ongoing issues every 5 minutes
-      const hasOngoingIssue = healthStatus === 'down' || !!data.error;
-      if (hasOngoingIssue) {
+      if (ongoingIssues.length > 0) {
         const ongoing = ongoingAlerts.get(name);
         const now = Date.now();
         if (!ongoing) {
@@ -139,13 +157,7 @@ export function createNotifier(config) {
         } else if (now - ongoing.lastRepeat >= REPEAT_INTERVAL) {
           ongoing.lastRepeat = now;
           const durationMin = Math.round((now - ongoing.since) / 60000);
-          const lines = [`**${label}** (${name})`];
-          if (healthStatus === 'down') {
-            lines.push(`🔴 OpenClaw 持续宕机中 (已持续 ${durationMin} 分钟, 连续失败 ${data.health?.consecutiveFails || '?'} 次)`);
-          }
-          if (data.error) {
-            lines.push(`🔴 持续连接失败: ${data.error} (已持续 ${durationMin} 分钟)`);
-          }
+          const lines = [`**${label}** (${name})`, `⏱ 已持续 ${durationMin} 分钟`, ...ongoingIssues];
           const card = buildCard(`${label} 持续告警`, 'red', lines, baseUrl, basePath);
           sendWebhook(webhookUrl, card);
         }

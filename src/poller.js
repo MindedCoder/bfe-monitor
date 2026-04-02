@@ -9,7 +9,7 @@ export function createPoller(config, instances, state) {
   let timer = null;
   let codexTimer = null;
 
-  async function fetchJson(url) {
+  async function fetchJsonOnce(url) {
     const ac = new AbortController();
     const t = setTimeout(() => ac.abort(), timeout);
     try {
@@ -21,6 +21,16 @@ export function createPoller(config, instances, state) {
     } finally {
       clearTimeout(t);
     }
+  }
+
+  async function fetchJson(url) {
+    const maxRetries = 2;
+    let result = await fetchJsonOnce(url);
+    for (let i = 0; i < maxRetries && result.error; i++) {
+      console.log(`[poller] retry ${i + 1}/${maxRetries} for ${url} (${result.error})`);
+      result = await fetchJsonOnce(url);
+    }
+    return result;
   }
 
   async function pollInstance(name) {

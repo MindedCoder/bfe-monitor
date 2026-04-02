@@ -87,6 +87,7 @@ export function createNotifier(config) {
       }
 
       // check ping (supports array format from /api/ping/trigger)
+      const recoveredPings = [];
       if (data.ping && !data.ping.error) {
         const pingItems = Array.isArray(data.ping)
           ? data.ping.map(item => [item.name || '?', { ok: item.ok, error: item.error, status: item.status }])
@@ -95,8 +96,18 @@ export function createNotifier(config) {
           if (info && !info.ok && prev[`ping:${target}`] !== false) {
             alerts.push({ type: 'warn', msg: `${target} Ping 失败: ${info.error || 'HTTP ' + info.status}` });
           }
+          if (info && info.ok && prev[`ping:${target}`] === false) {
+            recoveredPings.push(target);
+          }
           if (info) prev[`ping:${target}`] = info.ok;
         }
+      }
+      if (recoveredPings.length > 0 && shouldAlert(`${name}:ping:recover`)) {
+        const card = buildCard(`${label} 已恢复`, 'green', [
+          `**${label}** (${name})`,
+          ...recoveredPings.map(t => `✅ ${t} Ping 已恢复正常`),
+        ], baseUrl, basePath);
+        sendWebhook(webhookUrl, card);
       }
 
       // check codex
@@ -115,6 +126,13 @@ export function createNotifier(config) {
       // check connection error
       if (data.error && !prev.connError) {
         alerts.push({ type: 'error', msg: `连接失败: ${data.error}` });
+      }
+      if (!data.error && prev.connError && shouldAlert(`${name}:conn:recover`)) {
+        const card = buildCard(`${label} 已恢复`, 'green', [
+          `**${label}** (${name})`,
+          '✅ 连接已恢复正常',
+        ], baseUrl, basePath);
+        sendWebhook(webhookUrl, card);
       }
       prev.connError = !!data.error;
 

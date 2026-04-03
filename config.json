@@ -15,7 +15,7 @@
   ],
   "mongodb": {
     "uri": "mongodb://localhost:27017",
-    "database": "bfe_monitor"
+    "database": "claw"
   },
   "sms": {
     "accessKeyId": "",

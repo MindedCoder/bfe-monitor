@@ -21,7 +21,7 @@ data:
         { "name": "kai", "label": "凯哥" }
       ],
       "mongodb": {
-        "database": "bfe_monitor"
+        "database": "claw"
       },
       "sms": {
         "signName": "BFELAB",

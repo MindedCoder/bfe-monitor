@@ -2,7 +2,7 @@ import http from 'node:http';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ObjectId } from 'mongodb';
+import { randomBytes } from 'node:crypto';
 import { renderPage, renderInner } from './dashboard.js';
 import { createPoller } from './poller.js';
 import { connectDb, getDb } from './db.js';
@@ -275,7 +275,7 @@ const server = http.createServer(async (req, res) => {
     const id = path.slice('/admin/api/users/'.length);
     let doc;
     try {
-      doc = await getDb().collection('users').findOne({ _id: new ObjectId(id) });
+      doc = await getDb().collection('users').findOne({ _id: id });
     } catch {
       return sendJson(res, { error: '无效ID' }, 400);
     }
@@ -296,7 +296,9 @@ const server = http.createServer(async (req, res) => {
     if (existing) return sendJson(res, { error: '该手机号已存在' }, 409);
 
     const now = new Date();
+    const id = randomBytes(12).toString('hex');
     const doc = {
+      _id: id,
       phone: body.phone,
       name: body.name,
       tenants: body.tenants || [],
@@ -305,8 +307,8 @@ const server = http.createServer(async (req, res) => {
     };
     if (body.password) doc.password = body.password;
 
-    const result = await db.collection('users').insertOne(doc);
-    return sendJson(res, { ok: true, _id: result.insertedId });
+    await db.collection('users').insertOne(doc);
+    return sendJson(res, { ok: true, _id: id });
   }
 
   // Update user
@@ -326,7 +328,7 @@ const server = http.createServer(async (req, res) => {
 
     try {
       await getDb().collection('users').updateOne(
-        { _id: new ObjectId(id) },
+        { _id: id },
         { $set: update },
       );
     } catch {
@@ -342,9 +344,9 @@ const server = http.createServer(async (req, res) => {
 
     const id = path.slice('/admin/api/users/'.length);
     try {
-      const doc = await getDb().collection('users').findOne({ _id: new ObjectId(id) });
+      const doc = await getDb().collection('users').findOne({ _id: id });
       if (doc) {
-        await getDb().collection('users').deleteOne({ _id: new ObjectId(id) });
+        await getDb().collection('users').deleteOne({ _id: id });
         // also remove admin record if exists
         await getDb().collection('admins').deleteOne({ phone: doc.phone });
       }
@@ -394,6 +396,7 @@ const server = http.createServer(async (req, res) => {
     if (existing) return sendJson(res, { error: '该用户已是管理员' }, 409);
 
     await db.collection('admins').insertOne({
+      _id: randomBytes(12).toString('hex'),
       phone: body.phone,
       role: body.role || 'admin',
       createdAt: new Date(),

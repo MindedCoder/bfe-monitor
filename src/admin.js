@@ -209,6 +209,7 @@ tr:last-child td{border-bottom:none}
 <div class="tabs">
   <button class="tab-btn active" onclick="switchSection('users')">用户管理</button>
   <button class="tab-btn" onclick="switchSection('admins')">管理员</button>
+  <button class="tab-btn" onclick="switchSection('instances')">机器管理</button>
 </div>
 
 <div class="content">
@@ -235,6 +236,17 @@ tr:last-child td{border-bottom:none}
       <tbody id="adminTableBody"><tr><td colspan="5" class="empty">加载中...</td></tr></tbody>
     </table>
   </div>
+
+  <!-- Instances Section -->
+  <div id="sec-instances" class="section">
+    <div class="toolbar">
+      <button class="btn btn-primary" onclick="openInstanceModal()">+ 添加机器</button>
+    </div>
+    <table>
+      <thead><tr><th>实例名</th><th>中文名</th><th>操作</th></tr></thead>
+      <tbody id="instanceTableBody"><tr><td colspan="3" class="empty">加载中...</td></tr></tbody>
+    </table>
+  </div>
 </div>
 
 <!-- User Modal -->
@@ -254,6 +266,21 @@ tr:last-child td{border-bottom:none}
     <div class="modal-footer">
       <button class="btn" onclick="closeUserModal()">取消</button>
       <button class="btn btn-primary" onclick="saveUser()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Instance Modal -->
+<div class="modal-mask" id="instanceModal">
+  <div class="modal">
+    <h3>添加机器</h3>
+    <label>实例名</label>
+    <input type="text" id="iName" placeholder="如 bfetest">
+    <label>中文名</label>
+    <input type="text" id="iLabel" placeholder="如 bfe机器">
+    <div class="modal-footer">
+      <button class="btn" onclick="closeInstanceModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveInstance()">添加</button>
     </div>
   </div>
 </div>
@@ -287,6 +314,7 @@ function switchSection(name){
   document.getElementById('sec-'+name).classList.add('active');
   if(name==='users')loadUsers();
   if(name==='admins')loadAdmins();
+  if(name==='instances')loadInstances();
 }
 
 // ─── Users ────────────────────────────────────────────────
@@ -407,6 +435,45 @@ async function removeAdmin(phone){
   if(!confirm('确认取消该用户的管理员权限？'))return;
   await fetch(BASE+'/admin/api/admins/'+encodeURIComponent(phone),{method:'DELETE'});
   loadAdmins();loadUsers();
+}
+
+// ─── Instances ────────────────────────────────────────────
+async function loadInstances(){
+  try{
+    const r=await fetch(BASE+'/api/instances');
+    const list=await r.json();
+    renderInstanceTable(list);
+  }catch{document.getElementById('instanceTableBody').innerHTML='<tr><td colspan="3" class="empty">加载失败</td></tr>'}
+}
+
+function renderInstanceTable(list){
+  const tb=document.getElementById('instanceTableBody');
+  if(!list.length){tb.innerHTML='<tr><td colspan="3" class="empty">暂无机器</td></tr>';return}
+  tb.innerHTML=list.map(i=>{
+    return '<tr><td>'+esc(i.name)+'</td><td>'+esc(i.label)+'</td>'
+      +'<td><button class="btn btn-sm btn-danger" onclick="deleteInstance(\\''+esc(i.name)+'\\')">删除</button></td></tr>';
+  }).join('');
+}
+
+function openInstanceModal(){
+  document.getElementById('iName').value='';
+  document.getElementById('iLabel').value='';
+  document.getElementById('instanceModal').classList.add('open');
+}
+function closeInstanceModal(){document.getElementById('instanceModal').classList.remove('open')}
+
+async function saveInstance(){
+  const name=document.getElementById('iName').value.trim();
+  const label=document.getElementById('iLabel').value.trim()||name;
+  if(!name){alert('实例名必填');return}
+  const r=await fetch(BASE+'/api/instances',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,label})});
+  if(r.ok){closeInstanceModal();loadInstances()}else{alert('添加失败')}
+}
+
+async function deleteInstance(name){
+  if(!confirm('确认删除机器 '+name+' ？'))return;
+  await fetch(BASE+'/api/instances/'+encodeURIComponent(name),{method:'DELETE'});
+  loadInstances();
 }
 
 async function logout(){

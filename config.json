@@ -10,6 +10,7 @@
   },
   "instances": [
     { "name": "bfetest", "label": "bfe机器" },
-    { "name": "monitor", "label": "网管机" }
+    { "name": "monitor", "label": "网管机" },
+    { "name": "kai", "label": "凯哥" }
   ]
 }

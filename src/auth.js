@@ -169,6 +169,7 @@ export async function sendCode(phone, smsConfig) {
 // ─── Verify login ────────────────────────────────────────────
 
 export async function verifyLogin({ phone, code, password, loginType }) {
+  console.log(`[auth] verifyLogin: phone=${phone} loginType=${loginType} hasCode=${!!code} hasPassword=${!!password}`);
   if (!phone) return null;
   const db = getDb();
 
@@ -176,11 +177,17 @@ export async function verifyLogin({ phone, code, password, loginType }) {
   if (loginType === 'password' || (!code && password)) {
     if (!password) return { error: '请输入密码' };
     const user = await db.collection('users').findOne({ phone });
+    console.log(`[auth] password login: user found=${!!user}, hasPassword=${!!user?.password}`);
     if (!user) return { error: '用户不存在' };
     if (!user.password) return { error: '该用户未设置密码' };
-    if (user.password !== password) return { error: '密码错误' };
+    if (user.password !== password) {
+      console.log(`[auth] password mismatch: db="${user.password}" input="${password}"`);
+      return { error: '密码错误' };
+    }
     const admin = await db.collection('admins').findOne({ phone });
+    console.log(`[auth] admin check: found=${!!admin}, role=${admin?.role}`);
     if (!admin) return { error: '您没有管理员权限' };
+    console.log(`[auth] password login SUCCESS: ${user.name}`);
     return { name: user.name, phone: user.phone, role: admin.role || 'admin' };
   }
 
@@ -188,6 +195,7 @@ export async function verifyLogin({ phone, code, password, loginType }) {
   if (!code) return { error: '请输入验证码' };
 
   const doc = await db.collection('codes').findOne({ phone, tenant: '__admin__' });
+  console.log(`[auth] sms login: code doc found=${!!doc}, attempts=${doc?.attempts}`);
   if (!doc) return { error: '验证码不存在或已过期' };
   if (doc.attempts >= 5) return { error: '错误次数过多，请重新获取验证码' };
 
@@ -203,7 +211,9 @@ export async function verifyLogin({ phone, code, password, loginType }) {
   const user = await db.collection('users').findOne({ phone });
   if (!user) return { error: '用户不存在' };
   const admin = await db.collection('admins').findOne({ phone });
+  console.log(`[auth] sms login admin check: found=${!!admin}, role=${admin?.role}`);
   if (!admin) return { error: '您没有管理员权限' };
 
+  console.log(`[auth] sms login SUCCESS: ${user.name}`);
   return { name: user.name, phone: user.phone, role: admin.role || 'admin' };
 }

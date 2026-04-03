@@ -19,5 +19,13 @@ data:
         { "name": "bfetest", "label": "bfe机器" },
         { "name": "monitor", "label": "网管机" },
         { "name": "kai", "label": "凯哥" }
-      ]
+      ],
+      "mongodb": {
+        "database": "bfe_monitor"
+      },
+      "sms": {
+        "signName": "BFELAB",
+        "templateCode": "SMS_172005076"
+      },
+      "sessionTtlMs": 604800000
     }

@@ -23,6 +23,21 @@ spec:
           env:
             - name: CONFIG_PATH
               value: /etc/bfe-monitor/config.json
+            - name: MONGODB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: bfe-monitor-secret
+                  key: MONGODB_URI
+            - name: SMS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: bfe-monitor-secret
+                  key: SMS_ACCESS_KEY_ID
+            - name: SMS_ACCESS_KEY_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: bfe-monitor-secret
+                  key: SMS_ACCESS_KEY_SECRET
           volumeMounts:
             - name: config
               mountPath: /etc/bfe-monitor/config.json

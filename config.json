@@ -12,5 +12,16 @@
     { "name": "bfetest", "label": "bfe机器" },
     { "name": "monitor", "label": "网管机" },
     { "name": "kai", "label": "凯哥" }
-  ]
+  ],
+  "mongodb": {
+    "uri": "mongodb://localhost:27017",
+    "database": "bfe_monitor"
+  },
+  "sms": {
+    "accessKeyId": "",
+    "accessKeySecret": "",
+    "signName": "BFELAB",
+    "templateCode": "SMS_172005076"
+  },
+  "sessionTtlMs": 604800000
 }

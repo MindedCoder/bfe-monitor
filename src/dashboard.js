@@ -97,14 +97,16 @@ export function renderPage(basePath, instances, state, baseUrl) {
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#0d1117;color:#c9d1d9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px}
-.topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:#161b22;border-bottom:1px solid #30363d}
-.topbar h1{font-size:18px;color:#58a6ff}
-.topbar-right{display:flex;gap:8px;align-items:center}
+.topbar{padding:12px 20px;background:#161b22;border-bottom:1px solid #30363d}
+.topbar-row1{display:flex;align-items:center;justify-content:space-between}
+.topbar-row1 h1{font-size:18px;color:#58a6ff}
+.topbar-row1-right{display:flex;gap:8px;align-items:center}
 .instance-count{font-size:12px;color:#8b949e}
+.topbar-row2{display:flex;gap:8px;align-items:center;margin-top:10px}
 input[type=text]{background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:4px 8px;border-radius:4px;font-size:12px;width:120px}
 .btn{border:1px solid #30363d;background:#21262d;color:#c9d1d9;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px}
 .btn:hover{background:#30363d}
-.grid{padding:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
+.grid{padding:16px;display:grid;grid-template-columns:repeat(2,1fr);gap:16px;max-width:1200px;margin:0 auto}
 .panel{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px}
 .panel-error{border-color:#f85149}
 .panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
@@ -123,14 +125,19 @@ input[type=text]{background:#0d1117;border:1px solid #30363d;color:#c9d1d9;paddi
 .bar{flex:1;min-width:60px;height:6px;background:#21262d;border-radius:3px;overflow:hidden}
 .fill{height:100%;background:#3fb950;border-radius:3px}
 .fill.warn{background:#d29922}
-@media(max-width:480px){.grid{grid-template-columns:1fr;padding:8px}}
+@media(max-width:700px){.grid{grid-template-columns:1fr;padding:8px}}
 </style>
 </head>
 <body>
 <header class="topbar">
-  <h1>BFE Monitor</h1>
-  <div class="topbar-right">
-    <span class="instance-count">${instances.size} 台机器</span>
+  <div class="topbar-row1">
+    <h1>BFE Monitor</h1>
+    <div class="topbar-row1-right">
+      <span class="instance-count">${instances.size} 台机器</span>
+      <a href="${basePath}/admin" class="btn" style="text-decoration:none">管理后台</a>
+    </div>
+  </div>
+  <div class="topbar-row2">
     <input type="text" id="newInstance" placeholder="实例名">
     <input type="text" id="newLabel" placeholder="中文名">
     <button class="btn" onclick="addInstance()">添加</button>

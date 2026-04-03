@@ -97,10 +97,12 @@ export function renderPage(basePath, instances, state, baseUrl) {
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#0d1117;color:#c9d1d9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px}
-.topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:#161b22;border-bottom:1px solid #30363d}
+.topbar{padding:16px 20px;background:#161b22;border-bottom:1px solid #30363d}
+.topbar-row{display:flex;align-items:center;justify-content:space-between}
 .topbar h1{font-size:18px;color:#58a6ff}
 .topbar-right{display:flex;gap:8px;align-items:center}
 .instance-count{font-size:12px;color:#8b949e}
+.topbar-desc{font-size:12px;color:#8b949e;margin-top:6px;line-height:1.5}
 .btn{border:1px solid #30363d;background:#21262d;color:#c9d1d9;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;text-decoration:none}
 .btn:hover{background:#30363d}
 .grid{padding:16px;display:grid;grid-template-columns:repeat(2,1fr);gap:16px;max-width:1200px;margin:0 auto}
@@ -127,11 +129,14 @@ body{background:#0d1117;color:#c9d1d9;font-family:-apple-system,BlinkMacSystemFo
 </head>
 <body>
 <header class="topbar">
-  <h1>BFE Monitor</h1>
-  <div class="topbar-right">
-    <span class="instance-count">${instances.size} 台机器</span>
-    <a href="${basePath}/admin" class="btn">管理后台</a>
+  <div class="topbar-row">
+    <h1>BFE Monitor</h1>
+    <div class="topbar-right">
+      <span class="instance-count">${instances.size} 台机器</span>
+      <a href="${basePath}/admin" class="btn">管理后台</a>
+    </div>
   </div>
+  <div class="topbar-desc">OpenClaw 全局监控 — 实时巡检每一只龙虾的网络连通、服务健康与 Codex 配额</div>
 </header>
 <div class="grid" id="grid">${inner}</div>
 <script>

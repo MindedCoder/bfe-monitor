@@ -174,35 +174,36 @@ export async function verifyLogin({ phone, code, password, loginType }) {
 
   // password login
   if (loginType === 'password' || (!code && password)) {
-    if (!password) return null;
+    if (!password) return { error: '请输入密码' };
     const user = await db.collection('users').findOne({ phone });
-    if (!user || !user.password) return null;
-    if (user.password !== password) return null;
+    if (!user) return { error: '用户不存在' };
+    if (!user.password) return { error: '该用户未设置密码' };
+    if (user.password !== password) return { error: '密码错误' };
     const admin = await db.collection('admins').findOne({ phone });
-    if (!admin) return null;
+    if (!admin) return { error: '您没有管理员权限' };
     return { name: user.name, phone: user.phone, role: admin.role || 'admin' };
   }
 
   // sms code login
-  if (!code) return null;
+  if (!code) return { error: '请输入验证码' };
 
   const doc = await db.collection('codes').findOne({ phone, tenant: '__admin__' });
-  if (!doc) return null;
-  if (doc.attempts >= 5) return null;
+  if (!doc) return { error: '验证码不存在或已过期' };
+  if (doc.attempts >= 5) return { error: '错误次数过多，请重新获取验证码' };
 
   if (doc.code !== code) {
     await db.collection('codes').updateOne({ _id: doc._id }, { $inc: { attempts: 1 } });
-    return null;
+    return { error: '验证码错误' };
   }
 
-  if (new Date() > doc.expiresAt) return null;
+  if (new Date() > doc.expiresAt) return { error: '验证码已过期' };
 
   await db.collection('codes').deleteOne({ _id: doc._id });
 
   const user = await db.collection('users').findOne({ phone });
-  if (!user) return null;
+  if (!user) return { error: '用户不存在' };
   const admin = await db.collection('admins').findOne({ phone });
-  if (!admin) return null;
+  if (!admin) return { error: '您没有管理员权限' };
 
   return { name: user.name, phone: user.phone, role: admin.role || 'admin' };
 }

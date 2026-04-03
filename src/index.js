@@ -213,11 +213,12 @@ const server = http.createServer(async (req, res) => {
     const body = await readBody(req);
     if (!body) return sendJson(res, { message: '请求无效' }, 400);
     try {
-      const user = await verifyLogin(body);
-      if (!user) return sendJson(res, { message: '验证码错误或无管理员权限' }, 403);
-      const sid = await sessions.create(user);
+      const result = await verifyLogin(body);
+      if (result?.error) return sendJson(res, { message: result.error }, 403);
+      if (!result?.phone) return sendJson(res, { message: '登录失败' }, 403);
+      const sid = await sessions.create(result);
       setSessionCookie(res, sid, sessionTtl);
-      return sendJson(res, { ok: true, user: { name: user.name, role: user.role } });
+      return sendJson(res, { ok: true, user: { name: result.name, role: result.role } });
     } catch (err) {
       console.error('[admin] callback error:', err);
       return sendJson(res, { message: '登录失败' }, 500);

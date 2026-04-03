@@ -125,7 +125,7 @@ input[type=text]{background:#0d1117;border:1px solid #30363d;color:#c9d1d9;paddi
 .bar{flex:1;min-width:60px;height:6px;background:#21262d;border-radius:3px;overflow:hidden}
 .fill{height:100%;background:#3fb950;border-radius:3px}
 .fill.warn{background:#d29922}
-@media(max-width:700px){.grid{grid-template-columns:1fr;padding:8px}}
+@media(max-width:700px){.grid{grid-template-columns:repeat(2,1fr);gap:8px;padding:8px}.panel{padding:10px}.panel-link{font-size:13px}.metric{font-size:11px}}
 </style>
 </head>
 <body>

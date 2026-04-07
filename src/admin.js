@@ -260,8 +260,8 @@ tr:last-child td{border-bottom:none}
     <input type="tel" id="uPhone" placeholder="手机号" maxlength="11">
     <label>密码（可选）</label>
     <input type="text" id="uPassword" placeholder="新建：留空则只能短信登录；编辑：留空表示不修改">
-    <label>租户（机器）</label>
-    <div id="uTenantsBox" style="max-height:160px;overflow-y:auto;border:1px solid #30363d;border-radius:6px;padding:8px;background:#0d1117"></div>
+    <label>租户（机器）<a href="javascript:;" onclick="tenantSelectAll()" style="margin-left:12px;font-size:12px;color:#58a6ff;text-decoration:none">全选</a><a href="javascript:;" onclick="tenantInvert()" style="margin-left:8px;font-size:12px;color:#58a6ff;text-decoration:none">反选</a></label>
+    <div id="uTenantsBox" style="max-height:200px;overflow-y:auto;border:1px solid #30363d;border-radius:6px;padding:6px 8px;background:#0d1117;display:grid;grid-template-columns:1fr 1fr;gap:2px 12px"></div>
     <div class="tenants-input-hint">勾选该用户可访问的机器</div>
     <div class="modal-footer">
       <button class="btn" onclick="closeUserModal()">取消</button>
@@ -368,10 +368,12 @@ async function renderTenantCheckboxes(selected){
     box.innerHTML=list.map(i=>{
       const v='/'+i.name;
       const checked=sel.has(v)?'checked':'';
-      return '<label style="display:block;padding:4px 0;cursor:pointer"><input type="checkbox" class="uTenantChk" value="'+esc(v)+'" '+checked+'> '+esc(i.label||i.name)+' <span style="color:#6e7681;font-size:12px">('+esc(v)+')</span></label>';
+      return '<label style="display:flex;align-items:center;gap:6px;padding:3px 4px;cursor:pointer;font-size:13px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><input type="checkbox" class="uTenantChk" value="'+esc(v)+'" '+checked+' style="margin:0;flex-shrink:0"><span style="overflow:hidden;text-overflow:ellipsis">'+esc(i.label||i.name)+' <span style="color:#6e7681;font-size:11px">('+esc(v)+')</span></span></label>';
     }).join('');
   }catch{box.innerHTML='<div class="empty">加载失败</div>'}
 }
+function tenantSelectAll(){document.querySelectorAll('.uTenantChk').forEach(c=>c.checked=true)}
+function tenantInvert(){document.querySelectorAll('.uTenantChk').forEach(c=>c.checked=!c.checked)}
 function closeUserModal(){document.getElementById('userModal').classList.remove('open')}
 
 async function loadUserForEdit(id){

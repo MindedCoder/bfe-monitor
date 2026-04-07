@@ -259,7 +259,7 @@ tr:last-child td{border-bottom:none}
     <label>手机号</label>
     <input type="tel" id="uPhone" placeholder="手机号" maxlength="11">
     <label>密码（可选）</label>
-    <input type="text" id="uPassword" placeholder="留空则只能短信登录">
+    <input type="text" id="uPassword" placeholder="新建：留空则只能短信登录；编辑：留空表示不修改">
     <label>租户（机器）</label>
     <div id="uTenantsBox" style="max-height:160px;overflow-y:auto;border:1px solid #30363d;border-radius:6px;padding:8px;background:#0d1117"></div>
     <div class="tenants-input-hint">勾选该用户可访问的机器</div>
@@ -380,7 +380,7 @@ async function loadUserForEdit(id){
   document.getElementById('editUserId').value=u._id;
   document.getElementById('uName').value=u.name||'';
   document.getElementById('uPhone').value=u.phone||'';
-  document.getElementById('uPassword').value=u.password||'';
+  document.getElementById('uPassword').value='';
   await renderTenantCheckboxes(u.tenants||[]);
 }
 

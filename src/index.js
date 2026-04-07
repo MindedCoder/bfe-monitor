@@ -367,8 +367,9 @@ const server = http.createServer(async (req, res) => {
     if (body.name !== undefined) update.name = body.name;
     if (body.phone !== undefined) update.phone = body.phone;
     if (body.tenants !== undefined) update.tenants = body.tenants;
-    if (body.password !== undefined) {
-      update.password = body.password ? await bcrypt.hash(body.password, 10) : null;
+    // 仅当传入非空且非 bcrypt hash 的新密码时才更新；空串 / 已是 hash 视为"不修改"
+    if (typeof body.password === 'string' && body.password.length > 0 && !/^\$2[aby]\$/.test(body.password)) {
+      update.password = await bcrypt.hash(body.password, 10);
     }
 
     try {

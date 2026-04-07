@@ -261,7 +261,7 @@ tr:last-child td{border-bottom:none}
     <label>密码（可选）</label>
     <input type="text" id="uPassword" placeholder="新建：留空则只能短信登录；编辑：留空表示不修改">
     <label>租户（机器）<a href="javascript:;" onclick="tenantSelectAll()" style="margin-left:12px;font-size:12px;color:#58a6ff;text-decoration:none">全选</a><a href="javascript:;" onclick="tenantInvert()" style="margin-left:8px;font-size:12px;color:#58a6ff;text-decoration:none">反选</a></label>
-    <div id="uTenantsBox" style="max-height:200px;overflow-y:auto;border:1px solid #30363d;border-radius:6px;padding:6px 8px;background:#0d1117;display:grid;grid-template-columns:1fr 1fr;gap:2px 12px"></div>
+    <div id="uTenantsBox" style="max-height:200px;overflow-y:auto;border:1px solid #30363d;border-radius:6px;padding:6px 8px;background:#0d1117"></div>
     <div class="tenants-input-hint">勾选该用户可访问的机器</div>
     <div class="modal-footer">
       <button class="btn" onclick="closeUserModal()">取消</button>
@@ -368,7 +368,7 @@ async function renderTenantCheckboxes(selected){
     box.innerHTML=list.map(i=>{
       const v='/'+i.name;
       const checked=sel.has(v)?'checked':'';
-      return '<label style="display:flex;align-items:center;gap:6px;padding:3px 4px;cursor:pointer;font-size:13px;line-height:1.3"><input type="checkbox" class="uTenantChk" value="'+esc(v)+'" '+checked+' style="margin:0;flex-shrink:0">'+esc(i.label||i.name)+' <span style="color:#6e7681;font-size:11px">('+esc(v)+')</span></label>';
+      return '<label style="display:flex;align-items:center;gap:6px;padding:3px 4px;cursor:pointer;font-size:13px;line-height:1.4;white-space:nowrap"><input type="checkbox" class="uTenantChk" value="'+esc(v)+'" '+checked+' style="margin:0;flex-shrink:0">'+esc(i.label||i.name)+' <span style="color:#6e7681;font-size:11px">('+esc(v)+')</span></label>';
     }).join('');
   }catch{box.innerHTML='<div class="empty">加载失败</div>'}
 }

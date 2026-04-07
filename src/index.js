@@ -35,21 +35,29 @@ const port = config.port || 3000;
 const basePath = config.basePath || '/bfe-monitor';
 const sessionTtl = config.sessionTtlMs || 7 * 24 * 3600 * 1000;
 
-// instance map: name → label (mutable)
+// instance map: path → label (refreshed from DB on each read)
 const instances = new Map();
-for (const item of config.instances || []) {
-  if (typeof item === 'string') {
-    instances.set(item, item);
-  } else {
-    instances.set(item.name, item.label || item.name);
-  }
-}
 
-// polling state: { instanceName: { ping, health, codex, lastPoll, error } }
+// polling state: { instancePath: { ping, health, codex, lastPoll, error } }
 const state = new Map();
 
-// init poller
-const poller = createPoller(config, instances, state);
+async function refreshInstances() {
+  if (!dbReady) return instances;
+  const docs = await getDb().collection('instances').find({}).toArray();
+  instances.clear();
+  for (const d of docs) {
+    instances.set(d.path, d.label || d.path);
+    if (!state.has(d.path)) state.set(d.path, { ping: null, health: null, codex: null, lastPoll: null, error: null });
+  }
+  // drop state entries for instances no longer in DB
+  for (const k of [...state.keys()]) {
+    if (!instances.has(k)) state.delete(k);
+  }
+  return instances;
+}
+
+// init poller — pulls fresh instance list from DB each tick
+const poller = createPoller(config, refreshInstances, instances, state);
 poller.start();
 
 // connect MongoDB & init session store
@@ -60,25 +68,21 @@ let dbReady = false;
     await connectDb(config);
     sessions = new SessionStore(sessionTtl);
     dbReady = true;
-    // load instances from DB; seed from config on first run
+    // ensure unique index on path; seed from config.json on first run
     const col = getDb().collection('instances');
     await col.createIndex({ path: 1 }, { unique: true });
-    const docs = await col.find({}).toArray();
-    if (docs.length === 0 && instances.size > 0) {
-      await col.insertMany([...instances.entries()].map(([path, label]) => ({
-        _id: randomBytes(12).toString('hex'),
-        path,
-        label,
-      })));
-      console.log(`[bfe-monitor] seeded ${instances.size} instances into DB`);
-    } else {
-      instances.clear();
-      for (const d of docs) {
-        instances.set(d.path, d.label || d.path);
-        if (!state.has(d.path)) state.set(d.path, { ping: null, health: null, codex: null, lastPoll: null, error: null });
-      }
-      console.log(`[bfe-monitor] loaded ${docs.length} instances from DB`);
+    const count = await col.countDocuments();
+    if (count === 0 && Array.isArray(config.instances) && config.instances.length > 0) {
+      const seed = config.instances.map(item => {
+        const path = typeof item === 'string' ? item : item.name;
+        const label = typeof item === 'string' ? item : (item.label || item.name);
+        return { _id: randomBytes(12).toString('hex'), path, label };
+      });
+      await col.insertMany(seed);
+      console.log(`[bfe-monitor] seeded ${seed.length} instances into DB`);
     }
+    await refreshInstances();
+    console.log(`[bfe-monitor] loaded ${instances.size} instances from DB`);
     console.log('[bfe-monitor] admin module ready');
   } catch (err) {
     console.error('[bfe-monitor] MongoDB connection failed, admin module disabled:', err.message);
@@ -146,16 +150,19 @@ const server = http.createServer(async (req, res) => {
   // ═══ Original monitoring routes ═══
 
   if (req.method === 'GET' && path === '/') {
+    await refreshInstances();
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     return res.end(renderPage(basePath, instances, state, config.baseUrl));
   }
 
   if (req.method === 'GET' && path === '/api/html') {
+    await refreshInstances();
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     return res.end(renderInner(instances, state, config.baseUrl));
   }
 
   if (req.method === 'GET' && path === '/api/status') {
+    await refreshInstances();
     const data = {};
     for (const [name, s] of state) data[name] = s;
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -163,6 +170,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === 'GET' && path === '/api/instances') {
+    await refreshInstances();
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify([...instances.entries()].map(([n, l]) => ({ name: n, label: l }))));
   }
@@ -173,16 +181,17 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: 'name required' }));
     }
-    const label = body.label || body.name;
-    instances.set(body.name, label);
-    state.set(body.name, { ping: null, health: null, codex: null, lastPoll: null, error: null });
-    if (dbReady) {
-      await getDb().collection('instances').updateOne(
-        { path: body.name },
-        { $set: { label }, $setOnInsert: { _id: randomBytes(12).toString('hex'), path: body.name } },
-        { upsert: true },
-      );
+    if (!dbReady) {
+      res.writeHead(503, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '数据库未就绪' }));
     }
+    const label = body.label || body.name;
+    await getDb().collection('instances').updateOne(
+      { path: body.name },
+      { $set: { label }, $setOnInsert: { _id: randomBytes(12).toString('hex'), path: body.name } },
+      { upsert: true },
+    );
+    await refreshInstances();
     console.log(`[bfe-monitor] instance added: ${body.name} (${label})`);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ ok: true }));
@@ -190,11 +199,12 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'DELETE' && path.startsWith('/api/instances/')) {
     const name = decodeURIComponent(path.slice('/api/instances/'.length));
-    instances.delete(name);
-    state.delete(name);
-    if (dbReady) {
-      await getDb().collection('instances').deleteOne({ path: name });
+    if (!dbReady) {
+      res.writeHead(503, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '数据库未就绪' }));
     }
+    await getDb().collection('instances').deleteOne({ path: name });
+    await refreshInstances();
     console.log(`[bfe-monitor] instance removed: ${name}`);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ ok: true }));

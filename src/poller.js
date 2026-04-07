@@ -1,6 +1,6 @@
 import { createNotifier } from './notifier.js';
 
-export function createPoller(config, instances, state) {
+export function createPoller(config, refreshInstances, instances, state) {
   const baseUrl = config.baseUrl || 'https://claw.bfelab.com';
   const interval = config.pollIntervalMs || 5000;
   const codexInterval = config.codexPollIntervalMs || 300000; // 5 min
@@ -90,6 +90,7 @@ export function createPoller(config, instances, state) {
   }
 
   async function pollAll() {
+    try { await refreshInstances(); } catch (err) { console.error('[poller] refreshInstances failed:', err.message); }
     const tasks = [...instances.keys()].map(name =>
       pollInstance(name).catch(err => {
         const prev = state.get(name) || {};
@@ -105,6 +106,7 @@ export function createPoller(config, instances, state) {
   }
 
   async function pollAllCodex() {
+    try { await refreshInstances(); } catch (err) { console.error('[poller] refreshInstances failed:', err.message); }
     const tasks = [...instances.keys()].map(name =>
       pollCodexInstance(name).catch(() => {})
     );
@@ -113,11 +115,6 @@ export function createPoller(config, instances, state) {
   }
 
   function start() {
-    for (const name of instances.keys()) {
-      if (!state.has(name)) {
-        state.set(name, { ping: null, health: null, codex: null, lastPoll: null, error: null });
-      }
-    }
     pollAll();
     pollAllCodex();
     timer = setInterval(pollAll, interval);

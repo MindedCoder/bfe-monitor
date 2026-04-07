@@ -54,10 +54,26 @@ poller.start();
 
 // connect MongoDB & init session store
 let sessions;
+let dbReady = false;
 (async () => {
   try {
     await connectDb(config);
     sessions = new SessionStore(sessionTtl);
+    dbReady = true;
+    // load instances from DB; seed from config on first run
+    const col = getDb().collection('instances');
+    const docs = await col.find({}).toArray();
+    if (docs.length === 0 && instances.size > 0) {
+      await col.insertMany([...instances.entries()].map(([name, label]) => ({ _id: name, label })));
+      console.log(`[bfe-monitor] seeded ${instances.size} instances into DB`);
+    } else {
+      instances.clear();
+      for (const d of docs) {
+        instances.set(d._id, d.label || d._id);
+        if (!state.has(d._id)) state.set(d._id, { ping: null, health: null, codex: null, lastPoll: null, error: null });
+      }
+      console.log(`[bfe-monitor] loaded ${docs.length} instances from DB`);
+    }
     console.log('[bfe-monitor] admin module ready');
   } catch (err) {
     console.error('[bfe-monitor] MongoDB connection failed, admin module disabled:', err.message);
@@ -152,9 +168,17 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: 'name required' }));
     }
-    instances.set(body.name, body.label || body.name);
+    const label = body.label || body.name;
+    instances.set(body.name, label);
     state.set(body.name, { ping: null, health: null, codex: null, lastPoll: null, error: null });
-    console.log(`[bfe-monitor] instance added: ${body.name} (${body.label || body.name})`);
+    if (dbReady) {
+      await getDb().collection('instances').updateOne(
+        { _id: body.name },
+        { $set: { label } },
+        { upsert: true },
+      );
+    }
+    console.log(`[bfe-monitor] instance added: ${body.name} (${label})`);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ ok: true }));
   }
@@ -163,6 +187,9 @@ const server = http.createServer(async (req, res) => {
     const name = decodeURIComponent(path.slice('/api/instances/'.length));
     instances.delete(name);
     state.delete(name);
+    if (dbReady) {
+      await getDb().collection('instances').deleteOne({ _id: name });
+    }
     console.log(`[bfe-monitor] instance removed: ${name}`);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ ok: true }));

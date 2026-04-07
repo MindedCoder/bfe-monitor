@@ -260,9 +260,9 @@ tr:last-child td{border-bottom:none}
     <input type="tel" id="uPhone" placeholder="手机号" maxlength="11">
     <label>密码（可选）</label>
     <input type="text" id="uPassword" placeholder="留空则只能短信登录">
-    <label>租户（机器）</label>
-    <div id="uTenantsBox" style="max-height:160px;overflow-y:auto;border:1px solid #30363d;border-radius:6px;padding:8px;background:#0d1117"></div>
-    <div class="tenants-input-hint">勾选该用户可访问的机器</div>
+    <label>租户（逗号分隔）</label>
+    <input type="text" id="uTenants" placeholder="/huangcan, /bfetest">
+    <div class="tenants-input-hint">多个租户用逗号分隔，如 /huangcan, /bfetest</div>
     <div class="modal-footer">
       <button class="btn" onclick="closeUserModal()">取消</button>
       <button class="btn btn-primary" onclick="saveUser()">保存</button>
@@ -354,23 +354,10 @@ function openUserModal(id){
   document.getElementById('uName').value='';
   document.getElementById('uPhone').value='';
   document.getElementById('uPassword').value='';
+  document.getElementById('uTenants').value='';
   document.getElementById('userModalTitle').textContent=id?'编辑用户':'新增用户';
   document.getElementById('userModal').classList.add('open');
-  renderTenantCheckboxes([]).then(()=>{ if(id)loadUserForEdit(id); });
-}
-async function renderTenantCheckboxes(selected){
-  const box=document.getElementById('uTenantsBox');
-  try{
-    const r=await fetch(BASE+'/api/instances');
-    const list=await r.json();
-    if(!list.length){box.innerHTML='<div class="empty">暂无机器，请先到「机器管理」添加</div>';return}
-    const sel=new Set(selected||[]);
-    box.innerHTML=list.map(i=>{
-      const v='/'+i.name;
-      const checked=sel.has(v)?'checked':'';
-      return '<label style="display:block;padding:4px 0;cursor:pointer"><input type="checkbox" class="uTenantChk" value="'+esc(v)+'" '+checked+'> '+esc(i.label||i.name)+' <span style="color:#6e7681;font-size:12px">('+esc(v)+')</span></label>';
-    }).join('');
-  }catch{box.innerHTML='<div class="empty">加载失败</div>'}
+  if(id)loadUserForEdit(id);
 }
 function closeUserModal(){document.getElementById('userModal').classList.remove('open')}
 
@@ -381,7 +368,7 @@ async function loadUserForEdit(id){
   document.getElementById('uName').value=u.name||'';
   document.getElementById('uPhone').value=u.phone||'';
   document.getElementById('uPassword').value=u.password||'';
-  await renderTenantCheckboxes(u.tenants||[]);
+  document.getElementById('uTenants').value=(u.tenants||[]).join(', ');
 }
 
 async function saveUser(){
@@ -390,7 +377,7 @@ async function saveUser(){
     name:document.getElementById('uName').value.trim(),
     phone:document.getElementById('uPhone').value.trim(),
     password:document.getElementById('uPassword').value,
-    tenants:[...document.querySelectorAll('.uTenantChk:checked')].map(c=>c.value),
+    tenants:document.getElementById('uTenants').value.split(',').map(s=>s.trim()).filter(Boolean),
   };
   if(!data.name||!data.phone){alert('姓名和手机号必填');return}
   const url=id?BASE+'/admin/api/users/'+id:BASE+'/admin/api/users';

@@ -62,15 +62,20 @@ let dbReady = false;
     dbReady = true;
     // load instances from DB; seed from config on first run
     const col = getDb().collection('instances');
+    await col.createIndex({ path: 1 }, { unique: true });
     const docs = await col.find({}).toArray();
     if (docs.length === 0 && instances.size > 0) {
-      await col.insertMany([...instances.entries()].map(([name, label]) => ({ _id: name, label })));
+      await col.insertMany([...instances.entries()].map(([path, label]) => ({
+        _id: randomBytes(12).toString('hex'),
+        path,
+        label,
+      })));
       console.log(`[bfe-monitor] seeded ${instances.size} instances into DB`);
     } else {
       instances.clear();
       for (const d of docs) {
-        instances.set(d._id, d.label || d._id);
-        if (!state.has(d._id)) state.set(d._id, { ping: null, health: null, codex: null, lastPoll: null, error: null });
+        instances.set(d.path, d.label || d.path);
+        if (!state.has(d.path)) state.set(d.path, { ping: null, health: null, codex: null, lastPoll: null, error: null });
       }
       console.log(`[bfe-monitor] loaded ${docs.length} instances from DB`);
     }
@@ -173,8 +178,8 @@ const server = http.createServer(async (req, res) => {
     state.set(body.name, { ping: null, health: null, codex: null, lastPoll: null, error: null });
     if (dbReady) {
       await getDb().collection('instances').updateOne(
-        { _id: body.name },
-        { $set: { label } },
+        { path: body.name },
+        { $set: { label }, $setOnInsert: { _id: randomBytes(12).toString('hex'), path: body.name } },
         { upsert: true },
       );
     }
@@ -188,7 +193,7 @@ const server = http.createServer(async (req, res) => {
     instances.delete(name);
     state.delete(name);
     if (dbReady) {
-      await getDb().collection('instances').deleteOne({ _id: name });
+      await getDb().collection('instances').deleteOne({ path: name });
     }
     console.log(`[bfe-monitor] instance removed: ${name}`);
     res.writeHead(200, { 'Content-Type': 'application/json' });

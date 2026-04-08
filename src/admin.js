@@ -186,6 +186,7 @@ tr:last-child td{border-bottom:none}
 .modal h3{margin-bottom:16px;font-size:16px;color:#c9d1d9}
 .modal label{font-size:12px;color:#8b949e;display:block;margin-bottom:4px;margin-top:12px}
 .modal input,.modal select{width:100%;padding:8px 10px;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;border-radius:6px;font-size:13px;outline:none}
+.modal input[type=checkbox],.modal input[type=radio]{width:auto;padding:0}
 .modal input:focus,.modal select:focus{border-color:#58a6ff}
 .modal-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
 .tenants-input-hint{font-size:11px;color:#484f58;margin-top:2px}

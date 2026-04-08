@@ -76,6 +76,18 @@ input::placeholder{color:#484f58}
 
 <script>
 const BASE='${B}';
+const SID_KEY='bfe_admin_sid';
+// Try to restore session from localStorage (WebView cookie-wipe fallback).
+// If successful, skip the login form and jump straight into /admin.
+(async function tryRestore(){
+  try{
+    const sid=localStorage.getItem(SID_KEY);
+    if(!sid)return;
+    const r=await fetch(BASE+'/admin/restore-session',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+sid},body:JSON.stringify({sid})});
+    if(r.ok){location.href=BASE+'/admin';return}
+    localStorage.removeItem(SID_KEY);
+  }catch{}
+})();
 function showMsg(t,ok){const e=document.getElementById('msg');e.textContent=t;e.className='msg '+(ok?'ok':'err')}
 function switchTab(t){
   document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',(t==='sms'&&i===0)||(t==='pwd'&&i===1)));
@@ -105,7 +117,7 @@ async function doSmsLogin(){
   try{
     const r=await fetch(BASE+'/admin/callback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone,code,loginType:'sms'})});
     const d=await r.json();
-    if(r.ok){location.href=BASE+'/admin'}else{showMsg(d.message||'登录失败',false)}
+    if(r.ok){if(d.sid)try{localStorage.setItem(SID_KEY,d.sid)}catch{};location.href=BASE+'/admin'}else{showMsg(d.message||'登录失败',false)}
   }catch{showMsg('网络错误',false)}
 }
 async function doPwdLogin(){
@@ -115,7 +127,7 @@ async function doPwdLogin(){
   try{
     const r=await fetch(BASE+'/admin/callback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone,password,loginType:'password'})});
     const d=await r.json();
-    if(r.ok){location.href=BASE+'/admin'}else{showMsg(d.message||'登录失败',false)}
+    if(r.ok){if(d.sid)try{localStorage.setItem(SID_KEY,d.sid)}catch{};location.href=BASE+'/admin'}else{showMsg(d.message||'登录失败',false)}
   }catch{showMsg('网络错误',false)}
 }
 document.getElementById('phone').addEventListener('keydown',e=>{if(e.key==='Enter')sendCode()});
@@ -306,6 +318,27 @@ tr:last-child td{border-bottom:none}
 
 <script>
 const BASE='${B}';
+const SID_KEY='bfe_admin_sid';
+// Monkey-patch fetch to attach Authorization header from localStorage,
+// so that if the cookie gets wiped by a WebView mid-session the API still works.
+(function(){
+  const _f=window.fetch.bind(window);
+  window.fetch=function(input,init){
+    init=init||{};
+    try{
+      const sid=localStorage.getItem(SID_KEY);
+      if(sid){
+        const h=new Headers(init.headers||(typeof input!=='string'&&input.headers)||{});
+        if(!h.has('Authorization'))h.set('Authorization','Bearer '+sid);
+        init.headers=h;
+      }
+    }catch{}
+    return _f(input,init);
+  };
+})();
+// If we got here without a backup sid (e.g. opened directly), and the server
+// later 401s, the user will be bounced to /admin/login — that page will then
+// try restore or prompt login. Nothing more to do here.
 let userPage=1;const userLimit=20;
 
 function switchSection(name){
@@ -493,6 +526,7 @@ async function deleteInstance(name){
 }
 
 async function logout(){
+  try{localStorage.removeItem(SID_KEY)}catch{}
   await fetch(BASE+'/admin/logout',{method:'POST'});
   location.href=BASE+'/admin/login';
 }

@@ -261,11 +261,23 @@ const server = http.createServer(async (req, res) => {
       if (!result?.phone) return sendJson(res, { message: '登录失败' }, 403);
       const sid = await sessions.create(result);
       setSessionCookie(res, sid, sessionTtl);
-      return sendJson(res, { ok: true, user: { name: result.name, role: result.role } });
+      return sendJson(res, { ok: true, sid, user: { name: result.name, role: result.role } });
     } catch (err) {
       console.error('[admin] callback error:', err);
       return sendJson(res, { message: '登录失败' }, 500);
     }
+  }
+
+  // Restore session from client-side backup (localStorage fallback for WebViews that wipe cookies)
+  if (req.method === 'POST' && path === '/admin/restore-session') {
+    if (!sessions) return sendJson(res, { error: '管理模块未就绪' }, 503);
+    const body = await readBody(req);
+    const sid = body?.sid;
+    if (!sid) return sendJson(res, { error: 'missing sid' }, 400);
+    const user = await sessions.get(sid);
+    if (!user) return sendJson(res, { error: 'invalid' }, 401);
+    setSessionCookie(res, sid, sessionTtl);
+    return sendJson(res, { ok: true });
   }
 
   // Logout

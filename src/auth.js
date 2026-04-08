@@ -58,7 +58,12 @@ export function parseCookies(req) {
 }
 
 export function getSessionId(req) {
-  return parseCookies(req)[COOKIE_NAME] || null;
+  const fromCookie = parseCookies(req)[COOKIE_NAME];
+  if (fromCookie) return fromCookie;
+  // fallback: Authorization: Bearer <sid> (for WebViews that wipe cookies)
+  const auth = req.headers.authorization || req.headers.Authorization || '';
+  const m = /^Bearer\s+(.+)$/i.exec(auth);
+  return m ? m[1] : null;
 }
 
 export function setSessionCookie(res, sid, ttlMs) {

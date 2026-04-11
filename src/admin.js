@@ -498,6 +498,8 @@ async function loadInstances(){
 function renderInstanceTable(list){
   const tb=document.getElementById('instanceTableBody');
   if(!list.length){tb.innerHTML='<tr><td colspan="4" class="empty">暂无机器</td></tr>';return}
+  // active first, paused at the end
+  list=[...list].sort((a,b)=>(a.paused?1:0)-(b.paused?1:0));
   tb.innerHTML=list.map(i=>{
     const stateTag=i.paused
       ?'<span class="tag" style="background:rgba(139,148,158,.15);color:#8b949e">⏸ 已暂停</span>'

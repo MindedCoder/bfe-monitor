@@ -91,7 +91,13 @@ function renderInstancePanel(name, label, data, baseUrl, paused) {
 }
 
 export function renderInner(instances, state, baseUrl, pausedInstances = new Set()) {
-  return [...instances.entries()].map(([name, label]) =>
+  // sort: active instances first, paused ones at the end (stable within each group)
+  const entries = [...instances.entries()].sort(([a], [b]) => {
+    const pa = pausedInstances.has(a) ? 1 : 0;
+    const pb = pausedInstances.has(b) ? 1 : 0;
+    return pa - pb;
+  });
+  return entries.map(([name, label]) =>
     renderInstancePanel(name, label, state.get(name), baseUrl, pausedInstances.has(name))
   ).join('');
 }

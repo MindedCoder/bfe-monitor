@@ -44,6 +44,10 @@ const pausedInstances = new Set();
 // polling state: { instancePath: { ping, health, codex, lastPoll, error } }
 const state = new Map();
 
+// declared early so refreshInstances() (called by poller.start() below) doesn't TDZ
+let dbReady = false;
+let sessions;
+
 async function refreshInstances() {
   if (!dbReady) return instances;
   const docs = await getDb().collection('instances').find({}).toArray();
@@ -66,8 +70,6 @@ const poller = createPoller(config, refreshInstances, instances, state, pausedIn
 poller.start();
 
 // connect MongoDB & init session store
-let sessions;
-let dbReady = false;
 (async () => {
   try {
     await connectDb(config);

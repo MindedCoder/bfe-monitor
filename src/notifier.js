@@ -11,13 +11,20 @@ function shouldAlert(key) {
 }
 
 async function sendWebhook(webhookUrl, card) {
+  const title = card?.header?.title?.content || '(no title)';
+  console.log(`[notifier] sending webhook: ${title}`);
   try {
     const res = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ msg_type: 'interactive', card }),
     });
-    if (!res.ok) console.log(`[notifier] webhook failed: HTTP ${res.status}`);
+    if (!res.ok) {
+      console.log(`[notifier] webhook failed: HTTP ${res.status}`);
+    } else {
+      const body = await res.text().catch(() => '');
+      console.log(`[notifier] webhook ok: ${body.slice(0, 200)}`);
+    }
   } catch (err) {
     console.log(`[notifier] webhook error: ${err.message}`);
   }

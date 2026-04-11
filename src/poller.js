@@ -176,5 +176,5 @@ export function createPoller(config, refreshInstances, instances, state, pausedI
     if (codexTimer) clearInterval(codexTimer);
   }
 
-  return { start, stop, pollAll };
+  return { start, stop, pollAll, pollAllCodex };
 }

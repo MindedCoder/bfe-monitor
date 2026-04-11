@@ -89,10 +89,11 @@ let dbReady = false;
     await refreshInstances();
     console.log(`[bfe-monitor] loaded ${instances.size} instances from DB`);
     console.log('[bfe-monitor] admin module ready');
-    // poller.start() ran before DB was ready, so its initial pollAll() saw an
-    // empty instances map. Kick off a fresh poll now so the dashboard has data
-    // immediately instead of waiting for the next 5-minute tick.
-    poller.pollAll().catch(err => console.error('[bfe-monitor] initial poll failed:', err.message));
+    // poller.start() ran before DB was ready, so its initial pollAll/pollAllCodex
+    // saw an empty instances map. Kick off fresh polls now so the dashboard has
+    // both health and codex data immediately instead of waiting for the next tick.
+    poller.pollAll().catch(err => console.error('[bfe-monitor] initial pollAll failed:', err.message));
+    poller.pollAllCodex().catch(err => console.error('[bfe-monitor] initial pollAllCodex failed:', err.message));
   } catch (err) {
     console.error('[bfe-monitor] MongoDB connection failed, admin module disabled:', err.message);
   }

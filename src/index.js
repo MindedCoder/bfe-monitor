@@ -38,6 +38,9 @@ const sessionTtl = config.sessionTtlMs || 7 * 24 * 3600 * 1000;
 // instance map: path → label (refreshed from DB on each read)
 const instances = new Map();
 
+// paused instances: notifications & polling are skipped while a path is in this set
+const pausedInstances = new Set();
+
 // polling state: { instancePath: { ping, health, codex, lastPoll, error } }
 const state = new Map();
 
@@ -45,8 +48,10 @@ async function refreshInstances() {
   if (!dbReady) return instances;
   const docs = await getDb().collection('instances').find({}).toArray();
   instances.clear();
+  pausedInstances.clear();
   for (const d of docs) {
     instances.set(d.path, d.label || d.path);
+    if (d.paused) pausedInstances.add(d.path);
     if (!state.has(d.path)) state.set(d.path, { ping: null, health: null, codex: null, lastPoll: null, error: null });
   }
   // drop state entries for instances no longer in DB
@@ -57,7 +62,7 @@ async function refreshInstances() {
 }
 
 // init poller — pulls fresh instance list from DB each tick
-const poller = createPoller(config, refreshInstances, instances, state);
+const poller = createPoller(config, refreshInstances, instances, state, pausedInstances);
 poller.start();
 
 // connect MongoDB & init session store
@@ -152,13 +157,13 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && path === '/') {
     await refreshInstances();
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    return res.end(renderPage(basePath, instances, state, config.baseUrl));
+    return res.end(renderPage(basePath, instances, state, config.baseUrl, pausedInstances));
   }
 
   if (req.method === 'GET' && path === '/api/html') {
     await refreshInstances();
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    return res.end(renderInner(instances, state, config.baseUrl));
+    return res.end(renderInner(instances, state, config.baseUrl, pausedInstances));
   }
 
   if (req.method === 'GET' && path === '/api/status') {
@@ -166,13 +171,18 @@ const server = http.createServer(async (req, res) => {
     const data = {};
     for (const [name, s] of state) data[name] = s;
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify({ instances: [...instances.entries()].map(([n, l]) => ({ name: n, label: l })), data }));
+    return res.end(JSON.stringify({
+      instances: [...instances.entries()].map(([n, l]) => ({ name: n, label: l, paused: pausedInstances.has(n) })),
+      data,
+    }));
   }
 
   if (req.method === 'GET' && path === '/api/instances') {
     await refreshInstances();
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify([...instances.entries()].map(([n, l]) => ({ name: n, label: l }))));
+    return res.end(JSON.stringify(
+      [...instances.entries()].map(([n, l]) => ({ name: n, label: l, paused: pausedInstances.has(n) }))
+    ));
   }
 
   if (req.method === 'POST' && path === '/api/instances') {
@@ -208,6 +218,29 @@ const server = http.createServer(async (req, res) => {
     console.log(`[bfe-monitor] instance removed: ${name}`);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ ok: true }));
+  }
+
+  // toggle pause flag — when paused, poller skips this instance entirely
+  if (req.method === 'PATCH' && path.startsWith('/api/instances/') && path.endsWith('/pause')) {
+    const name = decodeURIComponent(path.slice('/api/instances/'.length, -'/pause'.length));
+    if (!dbReady) {
+      res.writeHead(503, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '数据库未就绪' }));
+    }
+    const body = await readBody(req);
+    const paused = !!body?.paused;
+    const result = await getDb().collection('instances').updateOne(
+      { path: name },
+      { $set: { paused } },
+    );
+    if (result.matchedCount === 0) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '机器不存在' }));
+    }
+    await refreshInstances();
+    console.log(`[bfe-monitor] instance ${paused ? 'paused' : 'resumed'}: ${name}`);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ ok: true, paused }));
   }
 
   if (req.method === 'GET' && path === '/healthz') {

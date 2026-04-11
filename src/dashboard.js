@@ -60,18 +60,23 @@ function renderCodexCard(codex) {
   return rows.join('');
 }
 
-function renderInstancePanel(name, label, data, baseUrl) {
-  const errorCls = data?.error ? ' panel-error' : '';
-  const pollTime = timeAgo(data?.lastPoll);
+function renderInstancePanel(name, label, data, baseUrl, paused) {
+  const errorCls = data?.error && !paused ? ' panel-error' : '';
+  const pausedCls = paused ? ' panel-paused' : '';
+  const pollTime = paused ? '已暂停' : timeAgo(data?.lastPoll);
   const monitorUrl = `${baseUrl}/${name}/`;
+  const btnText = paused ? '开启通知' : '暂停通知';
+  const btnCls = paused ? 'btn-pause btn-resume' : 'btn-pause';
 
   return `
-    <div class="panel${errorCls}">
+    <div class="panel${errorCls}${pausedCls}">
       <div class="panel-header">
         <a href="${monitorUrl}" target="_blank" class="panel-link">${esc(label)}${label !== name ? ` <span style="font-size:11px;color:#8b949e;font-weight:400">${esc(name)}</span>` : ''}</a>
         <span class="poll-time">${pollTime}</span>
       </div>
-      ${data?.error
+      ${paused
+        ? `<div class="metric unknown">⏸ 已暂停监控与通知</div>`
+        : data?.error
         ? `<div class="metric error">${esc(data.error)}</div>`
         : `<div class="metrics">
             ${renderPingCard(data?.ping)}
@@ -79,15 +84,20 @@ function renderInstancePanel(name, label, data, baseUrl) {
             ${renderCodexCard(data?.codex)}
           </div>`
       }
+      <div class="panel-actions">
+        <button class="${btnCls}" data-name="${esc(name)}" data-paused="${paused ? '1' : '0'}" onclick="togglePause(this)">${btnText}</button>
+      </div>
     </div>`;
 }
 
-export function renderInner(instances, state, baseUrl) {
-  return [...instances.entries()].map(([name, label]) => renderInstancePanel(name, label, state.get(name), baseUrl)).join('');
+export function renderInner(instances, state, baseUrl, pausedInstances = new Set()) {
+  return [...instances.entries()].map(([name, label]) =>
+    renderInstancePanel(name, label, state.get(name), baseUrl, pausedInstances.has(name))
+  ).join('');
 }
 
-export function renderPage(basePath, instances, state, baseUrl) {
-  const inner = renderInner(instances, state, baseUrl);
+export function renderPage(basePath, instances, state, baseUrl, pausedInstances = new Set()) {
+  const inner = renderInner(instances, state, baseUrl, pausedInstances);
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -108,6 +118,12 @@ body{background:#0d1117;color:#c9d1d9;font-family:-apple-system,BlinkMacSystemFo
 .grid{padding:16px;display:grid;grid-template-columns:repeat(2,1fr);gap:16px;max-width:1200px;margin:0 auto}
 .panel{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px}
 .panel-error{border-color:#f85149}
+.panel-paused{opacity:0.65;border-style:dashed}
+.panel-actions{margin-top:12px;display:flex;justify-content:flex-end}
+.btn-pause{border:1px solid #30363d;background:#21262d;color:#c9d1d9;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px}
+.btn-pause:hover{background:#30363d}
+.btn-pause.btn-resume{border-color:#3fb950;color:#3fb950}
+.btn-pause:disabled{opacity:0.5;cursor:wait}
 .panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .panel-header h3{font-size:15px;color:#c9d1d9}
 .panel-link{font-size:15px;color:#58a6ff;text-decoration:none;font-weight:600}
@@ -141,12 +157,27 @@ body{background:#0d1117;color:#c9d1d9;font-family:-apple-system,BlinkMacSystemFo
 <div class="grid" id="grid">${inner}</div>
 <script>
 const BASE='${basePath}';
-setInterval(async()=>{
+async function refreshGrid(){
   try{
     const r=await fetch(BASE+'/api/html');
     if(r.ok){document.getElementById('grid').innerHTML=await r.text()}
   }catch{}
-},5000);
+}
+async function togglePause(btn){
+  const name=btn.dataset.name;
+  const next=btn.dataset.paused==='1'?false:true;
+  btn.disabled=true;
+  try{
+    const r=await fetch(BASE+'/api/instances/'+encodeURIComponent(name)+'/pause',{
+      method:'PATCH',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({paused:next}),
+    });
+    if(!r.ok){alert('操作失败: HTTP '+r.status);btn.disabled=false;return}
+    await refreshGrid();
+  }catch(e){alert('操作失败: '+e.message);btn.disabled=false}
+}
+setInterval(refreshGrid,5000);
 </script>
 </body>
 </html>`;

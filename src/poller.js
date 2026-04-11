@@ -1,6 +1,6 @@
 import { createNotifier } from './notifier.js';
 
-export function createPoller(config, refreshInstances, instances, state) {
+export function createPoller(config, refreshInstances, instances, state, pausedInstances = new Set()) {
   const baseUrl = config.baseUrl || 'https://claw.bfelab.com';
   const interval = config.pollIntervalMs || 5000;
   const codexInterval = config.codexPollIntervalMs || 300000; // 5 min
@@ -33,12 +33,48 @@ export function createPoller(config, refreshInstances, instances, state) {
     return result;
   }
 
+  // fail-N-times-before-alert retry: each HTTP call counts as one attempt.
+  // network errors and "HTTP 200 but content says failure" both count as failure.
+  // only after RESULT_RETRY_MAX consecutive failures does the bad result get returned.
+  const RESULT_RETRY_MAX = config.resultRetryMax || 3; // total attempts, including the first
+  const RESULT_RETRY_DELAY_MS = config.resultRetryDelayMs || 2000;
+
+  function pingHasFailure(ping) {
+    if (!ping) return true;
+    if (ping.error) return true;
+    if (Array.isArray(ping)) return ping.some(item => !item.ok);
+    for (const info of Object.values(ping)) {
+      if (info?.last && !info.last.ok) return true;
+    }
+    return false;
+  }
+
+  function healthHasFailure(health) {
+    if (!health) return true;
+    if (health.error) return true;
+    return health.status === 'down';
+  }
+
+  async function fetchWithResultRetry(url, isFailure, name, label) {
+    // uses fetchJsonOnce directly (not fetchJson) so each HTTP call counts as
+    // one attempt — network errors are not silently retried under the hood.
+    let result = await fetchJsonOnce(url);
+    for (let i = 1; i < RESULT_RETRY_MAX; i++) {
+      if (!isFailure(result)) break;
+      const reason = result?.error || (isFailure(result) ? 'content-failure' : 'unknown');
+      console.log(`[poller] ${name} ${label} attempt ${i}/${RESULT_RETRY_MAX} failed (${reason}), retrying in ${RESULT_RETRY_DELAY_MS}ms`);
+      await new Promise(r => setTimeout(r, RESULT_RETRY_DELAY_MS));
+      result = await fetchJsonOnce(url);
+    }
+    return result;
+  }
+
   async function pollInstance(name) {
     const apiBase = `${baseUrl}/${name}/api`;
 
     const [ping, health] = await Promise.all([
-      fetchJson(`${apiBase}/ping/trigger`),
-      fetchJson(`${apiBase}/health/check`),
+      fetchWithResultRetry(`${apiBase}/ping/trigger`, pingHasFailure, name, 'ping'),
+      fetchWithResultRetry(`${apiBase}/health/check`, healthHasFailure, name, 'health'),
     ]);
 
     const prev = state.get(name) || {};
@@ -89,9 +125,23 @@ export function createPoller(config, refreshInstances, instances, state) {
     state.set(name, { ...prev, codex, lastPoll: Date.now() });
   }
 
+  function activeNames() {
+    return [...instances.keys()].filter(name => !pausedInstances.has(name));
+  }
+
+  function activeInstancesMap() {
+    // build a filtered Map (path → label) that excludes paused instances,
+    // so notifier.check never alerts on machines the user has paused.
+    const m = new Map();
+    for (const [name, label] of instances) {
+      if (!pausedInstances.has(name)) m.set(name, label);
+    }
+    return m;
+  }
+
   async function pollAll() {
     try { await refreshInstances(); } catch (err) { console.error('[poller] refreshInstances failed:', err.message); }
-    const tasks = [...instances.keys()].map(name =>
+    const tasks = activeNames().map(name =>
       pollInstance(name).catch(err => {
         const prev = state.get(name) || {};
         state.set(name, {
@@ -102,16 +152,16 @@ export function createPoller(config, refreshInstances, instances, state) {
       })
     );
     await Promise.all(tasks);
-    notifier.check(instances, state);
+    notifier.check(activeInstancesMap(), state);
   }
 
   async function pollAllCodex() {
     try { await refreshInstances(); } catch (err) { console.error('[poller] refreshInstances failed:', err.message); }
-    const tasks = [...instances.keys()].map(name =>
+    const tasks = activeNames().map(name =>
       pollCodexInstance(name).catch(() => {})
     );
     await Promise.all(tasks);
-    notifier.check(instances, state);
+    notifier.check(activeInstancesMap(), state);
   }
 
   function start() {

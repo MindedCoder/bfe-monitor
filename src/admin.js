@@ -256,8 +256,8 @@ tr:last-child td{border-bottom:none}
       <button class="btn btn-primary" onclick="openInstanceModal()">+ 添加机器</button>
     </div>
     <table>
-      <thead><tr><th>实例名</th><th>中文名</th><th>操作</th></tr></thead>
-      <tbody id="instanceTableBody"><tr><td colspan="3" class="empty">加载中...</td></tr></tbody>
+      <thead><tr><th>实例名</th><th>中文名</th><th>通知状态</th><th>操作</th></tr></thead>
+      <tbody id="instanceTableBody"><tr><td colspan="4" class="empty">加载中...</td></tr></tbody>
     </table>
   </div>
 </div>
@@ -492,16 +492,31 @@ async function loadInstances(){
     const r=await fetch(BASE+'/api/instances');
     const list=await r.json();
     renderInstanceTable(list);
-  }catch{document.getElementById('instanceTableBody').innerHTML='<tr><td colspan="3" class="empty">加载失败</td></tr>'}
+  }catch{document.getElementById('instanceTableBody').innerHTML='<tr><td colspan="4" class="empty">加载失败</td></tr>'}
 }
 
 function renderInstanceTable(list){
   const tb=document.getElementById('instanceTableBody');
-  if(!list.length){tb.innerHTML='<tr><td colspan="3" class="empty">暂无机器</td></tr>';return}
+  if(!list.length){tb.innerHTML='<tr><td colspan="4" class="empty">暂无机器</td></tr>';return}
   tb.innerHTML=list.map(i=>{
-    return '<tr><td>'+esc(i.name)+'</td><td>'+esc(i.label)+'</td>'
-      +'<td><button class="btn btn-sm btn-danger" onclick="deleteInstance(\\''+esc(i.name)+'\\')">删除</button></td></tr>';
+    const stateTag=i.paused
+      ?'<span class="tag" style="background:rgba(139,148,158,.15);color:#8b949e">⏸ 已暂停</span>'
+      :'<span class="tag tag-admin">✓ 启用</span>';
+    const toggleBtn=i.paused
+      ?'<button class="btn btn-sm" style="border-color:#3fb950;color:#3fb950" onclick="toggleInstancePause(\\''+esc(i.name)+'\\',false)">开启通知</button>'
+      :'<button class="btn btn-sm" onclick="toggleInstancePause(\\''+esc(i.name)+'\\',true)">暂停通知</button>';
+    return '<tr><td>'+esc(i.name)+'</td><td>'+esc(i.label)+'</td><td>'+stateTag+'</td>'
+      +'<td>'+toggleBtn+' <button class="btn btn-sm btn-danger" onclick="deleteInstance(\\''+esc(i.name)+'\\')">删除</button></td></tr>';
   }).join('');
+}
+
+async function toggleInstancePause(name,paused){
+  const r=await fetch(BASE+'/api/instances/'+encodeURIComponent(name)+'/pause',{
+    method:'PATCH',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({paused}),
+  });
+  if(r.ok){loadInstances()}else{const d=await r.json().catch(()=>({}));alert(d.error||'操作失败')}
 }
 
 function openInstanceModal(){

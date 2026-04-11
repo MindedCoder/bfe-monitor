@@ -85,12 +85,26 @@ export function createPoller(config, refreshInstances, instances, state, pausedI
       console.log(`[poller][${ts}] ${name} error: ${prev.error ?? 'none'} → ${health?.error || ping?.error || 'none'}`);
     }
 
+    // Surface upstream HTTP errors (404, timeout, network failure on the
+    // health/ping endpoints themselves) to the top-level `error` field.
+    // notifier.js only checks `data.error` for "connection failed" alerts; if
+    // we leave it null, an instance whose entire /api/* namespace is gone
+    // (e.g. removed on the claw side) would never trigger any notification.
+    let apiError = null;
+    if (health?.error && ping?.error) {
+      apiError = `health & ping 接口均失败: ${health.error}`;
+    } else if (health?.error) {
+      apiError = `health 接口失败: ${health.error}`;
+    } else if (ping?.error) {
+      apiError = `ping 接口失败: ${ping.error}`;
+    }
+
     state.set(name, {
       ping,
       health,
       codex: prev.codex || null,
       lastPoll: Date.now(),
-      error: null,
+      error: apiError,
     });
   }
 

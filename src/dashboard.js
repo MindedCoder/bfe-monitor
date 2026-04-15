@@ -64,12 +64,12 @@ function renderInstancePanel(name, label, data, baseUrl, paused) {
   const errorCls = data?.error && !paused ? ' panel-error' : '';
   const pausedCls = paused ? ' panel-paused' : '';
   const pollTime = paused ? '已暂停' : timeAgo(data?.lastPoll);
-  const monitorUrl = `${baseUrl}/${name}/`;
+  const monitorUrl = `${baseUrl}/${name}/?show=all`;
   const btnText = paused ? '开启通知' : '暂停通知';
   const btnCls = paused ? 'btn-pause btn-resume' : 'btn-pause';
 
   return `
-    <div class="panel${errorCls}${pausedCls}">
+    <div class="panel${errorCls}${pausedCls}" data-url="${monitorUrl}" onclick="openPanel(event,this)">
       <div class="panel-header">
         <a href="${monitorUrl}" target="_blank" class="panel-link">${esc(label)}${label !== name ? ` <span style="font-size:11px;color:#8b949e;font-weight:400">${esc(name)}</span>` : ''}</a>
         <span class="poll-time">${pollTime}</span>
@@ -85,7 +85,7 @@ function renderInstancePanel(name, label, data, baseUrl, paused) {
           </div>`
       }
       <div class="panel-actions">
-        <button class="${btnCls}" data-name="${esc(name)}" data-paused="${paused ? '1' : '0'}" onclick="togglePause(this)">${btnText}</button>
+        <button class="${btnCls}" data-name="${esc(name)}" data-paused="${paused ? '1' : '0'}" onclick="togglePause(this);event.stopPropagation()">${btnText}</button>
       </div>
     </div>`;
 }
@@ -122,7 +122,8 @@ body{background:#0d1117;color:#c9d1d9;font-family:-apple-system,BlinkMacSystemFo
 .btn{border:1px solid #30363d;background:#21262d;color:#c9d1d9;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;text-decoration:none}
 .btn:hover{background:#30363d}
 .grid{padding:16px;display:grid;grid-template-columns:repeat(2,1fr);gap:16px;max-width:1200px;margin:0 auto}
-.panel{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px}
+.panel{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;cursor:pointer;transition:border-color 0.15s,background 0.15s}
+.panel:hover{border-color:#58a6ff;background:#1c232c}
 .panel-error{border-color:#f85149}
 .panel-paused{opacity:0.65;border-style:dashed}
 .panel-actions{margin-top:12px;display:flex;justify-content:flex-end}
@@ -168,6 +169,11 @@ async function refreshGrid(){
     const r=await fetch(BASE+'/api/html');
     if(r.ok){document.getElementById('grid').innerHTML=await r.text()}
   }catch{}
+}
+function openPanel(e,el){
+  if(e.target.closest('a,button'))return;
+  const url=el.dataset.url;
+  if(url)window.open(url,'_blank');
 }
 async function togglePause(btn){
   const name=btn.dataset.name;

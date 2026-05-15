@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bfe-monitor-config
+  namespace: bfe
+data:
+  config.json: |
+    {
+      "port": 3000,
+      "basePath": "/bfe-monitor",
+      "baseUrl": "https://claw.bfelab.com:31443",
+      "pollIntervalMs": 300000,
+      "codexPollIntervalMs": 300000,
+      "timeoutMs": 10000,
+      "feishu": {
+        "webhookUrl": "https://open.feishu.cn/open-apis/bot/v2/hook/2823a3ce-f536-43c3-9589-a7bb1e5aac0e"
+      },
+      "instances": [
+        { "name": "bfetest", "label": "bfe机器" },
+        { "name": "monitor", "label": "网管机" },
+        { "name": "kai", "label": "凯哥" }
+      ],
+      "mongodb": {
+        "database": "claw"
+      },
+      "sms": {
+        "signName": "巴菲信息",
+        "templateCode": "SMS_172005076"
+      },
+      "sessionTtlMs": 604800000
+    }

@@ -119,6 +119,12 @@ function sendJson(res, data, status = 200) {
   res.end(JSON.stringify(data));
 }
 
+function resolveBaseUrl(req, fallback) {
+  const proto = req.headers['x-forwarded-proto'] || 'https';
+  const host = req.headers['x-forwarded-host'] || req.headers.host;
+  return host ? `${proto}://${host}` : fallback;
+}
+
 function sendHtml(res, html, status = 200) {
   res.writeHead(status, { 'Content-Type': 'text/html; charset=utf-8' });
   res.end(html);
@@ -164,13 +170,13 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && path === '/') {
     await refreshInstances();
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    return res.end(renderPage(basePath, instances, state, config.baseUrl, pausedInstances));
+    return res.end(renderPage(basePath, instances, state, resolveBaseUrl(req, config.baseUrl), pausedInstances));
   }
 
   if (req.method === 'GET' && path === '/api/html') {
     await refreshInstances();
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    return res.end(renderInner(instances, state, config.baseUrl, pausedInstances));
+    return res.end(renderInner(instances, state, resolveBaseUrl(req, config.baseUrl), pausedInstances));
   }
 
   if (req.method === 'GET' && path === '/api/status') {
